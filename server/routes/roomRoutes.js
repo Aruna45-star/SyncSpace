@@ -1,10 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
-router.get("/", (req,res)=>{
+const { createRoom } = require("../controllers/roomController");
+
+
+router.post("/create", createRoom);
+
+
+router.get("/", (req, res) => {
     res.json({
-        message:"Room API Working"
+        message: "Room API Working"
     });
 });
+
 
 module.exports = router;
