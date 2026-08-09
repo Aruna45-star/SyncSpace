@@ -23,26 +23,31 @@ const io = new Server(server, {
 // Socket connection
 io.on("connection", (socket) => {
 
-    console.log("User connected:", socket.id);
+    console.log(
+        "User connected:",
+        socket.id
+    );
 
 
-    // Join Room
+    // =========================
+    // JOIN ROOM
+    // =========================
     socket.on("join-room", (roomId) => {
 
         socket.join(roomId);
 
-        // Remember which room this user joined
+        // Remember current room
         socket.roomId = roomId;
 
         console.log(
             `${socket.id} joined room ${roomId}`
         );
 
-        // Get number of users currently in the room
+        // Get current room user count
         const roomSize =
             io.sockets.adapter.rooms.get(roomId)?.size || 0;
 
-        // Send user count to everyone in the room
+        // Send count to everyone in room
         io.to(roomId).emit(
             "room-users",
             roomSize
@@ -51,33 +56,79 @@ io.on("connection", (socket) => {
     });
 
 
-    // Code Change
-    socket.on("code-change", ({ roomId, code }) => {
+    // =========================
+    // LEAVE ROOM
+    // =========================
+    socket.on("leave-room", (roomId) => {
 
-        socket.to(roomId).emit(
-            "code-update",
-            code
-        );
-
-    });
-
-
-    // Yjs Update
-    socket.on("yjs-update", ({ roomId, update }) => {
+        socket.leave(roomId);
 
         console.log(
-            `Yjs update received from ${socket.id} in room ${roomId}`
+            `${socket.id} left room ${roomId}`
         );
 
-        socket.to(roomId).emit(
-            "yjs-update",
-            update
+        // If this was the current room,
+        // clear stored room ID
+        if (socket.roomId === roomId) {
+            socket.roomId = null;
+        }
+
+        // Get remaining users in old room
+        const roomSize =
+            io.sockets.adapter.rooms.get(roomId)?.size || 0;
+
+        // Update remaining users
+        io.to(roomId).emit(
+            "room-users",
+            roomSize
         );
 
     });
 
 
-    // Disconnect
+    // =========================
+    // CODE CHANGE
+    // =========================
+    socket.on(
+        "code-change",
+        ({ roomId, code }) => {
+
+            socket
+                .to(roomId)
+                .emit(
+                    "code-update",
+                    code
+                );
+
+        }
+    );
+
+
+    // =========================
+    // YJS UPDATE
+    // =========================
+    socket.on(
+        "yjs-update",
+        ({ roomId, update }) => {
+
+            console.log(
+                `Yjs update received from ${socket.id} in room ${roomId}`
+            );
+
+            socket
+                .to(roomId)
+                .emit(
+                    "yjs-update",
+                    update
+                );
+
+        }
+    );
+
+
+    // =========================
+    // DISCONNECT
+    // =========================
     socket.on("disconnect", () => {
 
         console.log(
@@ -85,16 +136,13 @@ io.on("connection", (socket) => {
             socket.id
         );
 
-        // Get the room this user was in
         const roomId = socket.roomId;
 
         if (roomId) {
 
-            // Get remaining users in the room
             const roomSize =
                 io.sockets.adapter.rooms.get(roomId)?.size || 0;
 
-            // Send updated count to remaining users
             io.to(roomId).emit(
                 "room-users",
                 roomSize
@@ -107,6 +155,9 @@ io.on("connection", (socket) => {
 });
 
 
+// =========================
+// START SERVER
+// =========================
 server.listen(PORT, () => {
 
     console.log(
