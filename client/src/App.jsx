@@ -15,8 +15,11 @@ function App() {
 
     const ydocRef = useRef(null);
     const ytextRef = useRef(null);
+    const roomIdRef = useRef("");
 
-    // Create Yjs document only once
+    // =====================================
+    // CREATE YJS DOCUMENT
+    // =====================================
     useEffect(() => {
         const ydoc = new Y.Doc();
         const ytext = ydoc.getText("code");
@@ -24,97 +27,265 @@ function App() {
         ydocRef.current = ydoc;
         ytextRef.current = ytext;
 
-        // Socket connected
+        // =====================================
+        // SOCKET CONNECT
+        // =====================================
         const handleConnect = () => {
-            console.log("Socket Connected:", socket.id);
+            console.log(
+                "Socket Connected:",
+                socket.id
+            );
+
             setConnected(true);
         };
 
-        // Socket disconnected
+        // =====================================
+        // SOCKET DISCONNECT
+        // =====================================
         const handleDisconnect = () => {
-            console.log("Socket Disconnected");
+            console.log(
+                "Socket Disconnected"
+            );
+
             setConnected(false);
         };
 
-        // Users online count
+        // =====================================
+        // USERS ONLINE
+        // =====================================
         const handleRoomUsers = (count) => {
-            console.log("Users Online:", count);
+            console.log(
+                "Users Online:",
+                count
+            );
+
             setUsersOnline(count);
         };
 
-        // Receive normal code update
+        // =====================================
+        // NORMAL CODE UPDATE
+        // =====================================
         const handleCodeUpdate = (updatedCode) => {
-            console.log("Received Code:", updatedCode);
+            console.log(
+                "Received Code:",
+                updatedCode
+            );
 
             setCode(updatedCode);
         };
 
-        // Receive Yjs update
+        // =====================================
+        // RECEIVE YJS UPDATE
+        // =====================================
         const handleYjsUpdate = (update) => {
-            console.log("Received Yjs update");
+            console.log(
+                "Received Yjs update"
+            );
 
-            const uint8Array = new Uint8Array(update);
+            const uint8Array =
+                new Uint8Array(update);
 
-            Y.applyUpdate(ydoc, uint8Array);
+            // Apply remote update.
+            // "remote" prevents it from being
+            // sent back to the server.
+            Y.applyUpdate(
+                ydoc,
+                uint8Array,
+                "remote"
+            );
 
-            setCode(ytext.toString());
+            setCode(
+                ytext.toString()
+            );
         };
 
-        socket.on("connect", handleConnect);
-        socket.on("disconnect", handleDisconnect);
-        socket.on("room-users", handleRoomUsers);
-        socket.on("code-update", handleCodeUpdate);
-        socket.on("yjs-update", handleYjsUpdate);
+        // =====================================
+        // SEND LOCAL YJS UPDATE
+        // =====================================
+        const handleYjsLocalUpdate = (
+            update,
+            origin
+        ) => {
+            // Ignore updates received
+            // from another user.
+            if (origin !== "local") {
+                return;
+            }
 
+            const currentRoomId =
+                roomIdRef.current;
+
+            if (!currentRoomId) {
+                return;
+            }
+
+            const updateArray =
+                Array.from(update);
+
+            socket.emit(
+                "yjs-update",
+                {
+                    roomId: currentRoomId,
+                    update: updateArray
+                }
+            );
+
+            console.log(
+                "Yjs update sent"
+            );
+        };
+
+        // =====================================
+        // SOCKET LISTENERS
+        // =====================================
+        socket.on(
+            "connect",
+            handleConnect
+        );
+
+        socket.on(
+            "disconnect",
+            handleDisconnect
+        );
+
+        socket.on(
+            "room-users",
+            handleRoomUsers
+        );
+
+        socket.on(
+            "code-update",
+            handleCodeUpdate
+        );
+
+        socket.on(
+            "yjs-update",
+            handleYjsUpdate
+        );
+
+        // =====================================
+        // YJS LISTENER
+        // =====================================
+        ydoc.on(
+            "update",
+            handleYjsLocalUpdate
+        );
+
+        // =====================================
+        // CLEANUP
+        // =====================================
         return () => {
-            socket.off("connect", handleConnect);
-            socket.off("disconnect", handleDisconnect);
-            socket.off("room-users", handleRoomUsers);
-            socket.off("code-update", handleCodeUpdate);
-            socket.off("yjs-update", handleYjsUpdate);
+            socket.off(
+                "connect",
+                handleConnect
+            );
+
+            socket.off(
+                "disconnect",
+                handleDisconnect
+            );
+
+            socket.off(
+                "room-users",
+                handleRoomUsers
+            );
+
+            socket.off(
+                "code-update",
+                handleCodeUpdate
+            );
+
+            socket.off(
+                "yjs-update",
+                handleYjsUpdate
+            );
+
+            ydoc.off(
+                "update",
+                handleYjsLocalUpdate
+            );
 
             ydoc.destroy();
+
+            ydocRef.current = null;
+            ytextRef.current = null;
         };
     }, []);
 
-    // Join a room
-  const joinRoom = () => {
-    const trimmedRoomId = roomInput.trim();
+    // =====================================
+    // JOIN ROOM
+    // =====================================
+    const joinRoom = () => {
+        const trimmedRoomId =
+            roomInput.trim();
 
-    if (!trimmedRoomId) {
-        alert("Please enter a Room ID");
-        return;
-    }
+        if (!trimmedRoomId) {
+            alert(
+                "Please enter a Room ID"
+            );
 
-    // Leave previous room if already joined
-    if (roomId) {
-        socket.emit("leave-room", roomId);
-    }
+            return;
+        }
 
-    // Join new room
-    socket.emit("join-room", trimmedRoomId);
+        // Leave previous room
+        if (roomId) {
+            socket.emit(
+                "leave-room",
+                roomId
+            );
+        }
 
-    setRoomId(trimmedRoomId);
-    setJoinedRoom(true);
-    setUsersOnline(0);
+        // Store current room
+        roomIdRef.current =
+            trimmedRoomId;
 
-    console.log(
-        "Joined Room:",
-        trimmedRoomId
-    );
-};
+        // Join new room
+        socket.emit(
+            "join-room",
+            trimmedRoomId
+        );
 
-    // Create a new room
+        setRoomId(
+            trimmedRoomId
+        );
+
+        setJoinedRoom(true);
+
+        setUsersOnline(0);
+
+        console.log(
+            "Joined Room:",
+            trimmedRoomId
+        );
+    };
+
+    // =====================================
+    // CREATE ROOM
+    // =====================================
     const createRoom = () => {
         const newRoomId =
             Date.now().toString();
 
-        setRoomInput(newRoomId);
-        setRoomId(newRoomId);
+        setRoomInput(
+            newRoomId
+        );
+
+        // Store current room
+        roomIdRef.current =
+            newRoomId;
+
+        setRoomId(
+            newRoomId
+        );
+
         setJoinedRoom(true);
+
         setUsersOnline(0);
 
-        socket.emit("join-room", newRoomId);
+        socket.emit(
+            "join-room",
+            newRoomId
+        );
 
         console.log(
             "Created Room:",
@@ -122,40 +293,53 @@ function App() {
         );
     };
 
-    // Editor change
-    const handleEditorChange = (value) => {
-        const newCode = value || "";
+    // =====================================
+    // EDITOR CHANGE
+    // =====================================
+    const handleEditorChange = (
+        value
+    ) => {
+        const newCode =
+            value || "";
 
-        setCode(newCode);
+        setCode(
+            newCode
+        );
+
+        const ydoc =
+            ydocRef.current;
+
+        const ytext =
+            ytextRef.current;
+
+        if (!ydoc || !ytext) {
+            return;
+        }
 
         // Update Yjs document
-        const ydoc = ydocRef.current;
-        const ytext = ytextRef.current;
-
-        if (ydoc && ytext) {
-            ydoc.transact(() => {
+        ydoc.transact(
+            () => {
+                // Remove old text
                 ytext.delete(
                     0,
                     ytext.length
                 );
 
-                ytext.insert(
-                    0,
-                    newCode
-                );
-            });
-        }
-
-        // Send code update to room
-        if (roomId) {
-            socket.emit("code-change", {
-                roomId,
-                code: newCode
-            });
-        }
+                // Insert new text
+                if (newCode.length > 0) {
+                    ytext.insert(
+                        0,
+                        newCode
+                    );
+                }
+            },
+            "local"
+        );
     };
 
-    // Room selection screen
+    // =====================================
+    // ROOM SELECTION SCREEN
+    // =====================================
     if (!joinedRoom) {
         return (
             <div className="container">
@@ -215,7 +399,9 @@ function App() {
         );
     }
 
-    // Code editor screen
+    // =====================================
+    // CODE EDITOR SCREEN
+    // =====================================
     return (
         <div className="container">
 
@@ -235,14 +421,17 @@ function App() {
             </p>
 
             <p>
-                👥 Users Online: {usersOnline}
+                👥 Users Online:{" "}
+                {usersOnline}
             </p>
 
             <Editor
                 height="500px"
                 defaultLanguage="javascript"
                 value={code}
-                onChange={handleEditorChange}
+                onChange={
+                    handleEditorChange
+                }
                 theme="vs-dark"
                 options={{
                     minimap: {
