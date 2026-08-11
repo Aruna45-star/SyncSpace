@@ -28,12 +28,33 @@ io.on("connection", (socket) => {
         socket.id
     );
 
-
     // =========================
     // JOIN ROOM
     // =========================
     socket.on("join-room", (roomId) => {
 
+        // If already in another room,
+        // leave that room first
+        if (socket.roomId && socket.roomId !== roomId) {
+
+            const oldRoomId = socket.roomId;
+
+            socket.leave(oldRoomId);
+
+            const oldRoomSize =
+                io.sockets.adapter.rooms.get(oldRoomId)?.size || 0;
+
+            io.to(oldRoomId).emit(
+                "room-users",
+                oldRoomSize
+            );
+
+            console.log(
+                `${socket.id} left old room ${oldRoomId}`
+            );
+        }
+
+        // Join new room
         socket.join(roomId);
 
         // Remember current room
@@ -52,7 +73,6 @@ io.on("connection", (socket) => {
             "room-users",
             roomSize
         );
-
     });
 
 
@@ -61,28 +81,27 @@ io.on("connection", (socket) => {
     // =========================
     socket.on("leave-room", (roomId) => {
 
+        // Leave the Socket.io room
         socket.leave(roomId);
 
         console.log(
             `${socket.id} left room ${roomId}`
         );
 
-        // If this was the current room,
-        // clear stored room ID
+        // Clear stored room ID
         if (socket.roomId === roomId) {
             socket.roomId = null;
         }
 
-        // Get remaining users in old room
+        // Get remaining users
         const roomSize =
             io.sockets.adapter.rooms.get(roomId)?.size || 0;
 
-        // Update remaining users
+        // Tell remaining users
         io.to(roomId).emit(
             "room-users",
             roomSize
         );
-
     });
 
 
@@ -99,7 +118,6 @@ io.on("connection", (socket) => {
                     "code-update",
                     code
                 );
-
         }
     );
 
@@ -121,7 +139,6 @@ io.on("connection", (socket) => {
                     "yjs-update",
                     update
                 );
-
         }
     );
 
@@ -147,9 +164,7 @@ io.on("connection", (socket) => {
                 "room-users",
                 roomSize
             );
-
         }
-
     });
 
 });
@@ -163,5 +178,4 @@ server.listen(PORT, () => {
     console.log(
         `Server running on port ${PORT}`
     );
-
 });

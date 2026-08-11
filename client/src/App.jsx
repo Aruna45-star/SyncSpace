@@ -85,9 +85,6 @@ function App() {
             const uint8Array =
                 new Uint8Array(update);
 
-            // Apply remote update.
-            // "remote" prevents it from being
-            // sent back to the server.
             Y.applyUpdate(
                 ydoc,
                 uint8Array,
@@ -106,8 +103,7 @@ function App() {
             update,
             origin
         ) => {
-            // Ignore updates received
-            // from another user.
+            // Ignore remote updates
             if (origin !== "local") {
                 return;
             }
@@ -235,11 +231,9 @@ function App() {
             );
         }
 
-        // Store current room
         roomIdRef.current =
             trimmedRoomId;
 
-        // Join new room
         socket.emit(
             "join-room",
             trimmedRoomId
@@ -270,7 +264,6 @@ function App() {
             newRoomId
         );
 
-        // Store current room
         roomIdRef.current =
             newRoomId;
 
@@ -290,6 +283,53 @@ function App() {
         console.log(
             "Created Room:",
             newRoomId
+        );
+    };
+
+    // =====================================
+    // LEAVE ROOM
+    // =====================================
+    const leaveRoom = () => {
+        if (roomId) {
+            socket.emit(
+                "leave-room",
+                roomId
+            );
+        }
+
+        roomIdRef.current = "";
+
+        setRoomId("");
+
+        setRoomInput("");
+
+        setJoinedRoom(false);
+
+        setUsersOnline(0);
+
+        setCode("");
+
+        // Clear Yjs document
+        const ydoc =
+            ydocRef.current;
+
+        const ytext =
+            ytextRef.current;
+
+        if (ydoc && ytext) {
+            ydoc.transact(
+                () => {
+                    ytext.delete(
+                        0,
+                        ytext.length
+                    );
+                },
+                "remote"
+            );
+        }
+
+        console.log(
+            "Left room"
         );
     };
 
@@ -316,16 +356,13 @@ function App() {
             return;
         }
 
-        // Update Yjs document
         ydoc.transact(
             () => {
-                // Remove old text
                 ytext.delete(
                     0,
                     ytext.length
                 );
 
-                // Insert new text
                 if (newCode.length > 0) {
                     ytext.insert(
                         0,
@@ -424,6 +461,13 @@ function App() {
                 👥 Users Online:{" "}
                 {usersOnline}
             </p>
+
+            {/* LEAVE ROOM BUTTON */}
+            <button
+                onClick={leaveRoom}
+            >
+                Leave Room
+            </button>
 
             <Editor
                 height="500px"
