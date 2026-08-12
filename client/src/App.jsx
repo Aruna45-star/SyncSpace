@@ -17,6 +17,7 @@ function App() {
     const ytextRef = useRef(null);
     const roomIdRef = useRef("");
 
+
     // =====================================
     // CREATE YJS DOCUMENT
     // =====================================
@@ -26,6 +27,7 @@ function App() {
 
         ydocRef.current = ydoc;
         ytextRef.current = ytext;
+
 
         // =====================================
         // SOCKET CONNECT
@@ -39,6 +41,7 @@ function App() {
             setConnected(true);
         };
 
+
         // =====================================
         // SOCKET DISCONNECT
         // =====================================
@@ -49,6 +52,7 @@ function App() {
 
             setConnected(false);
         };
+
 
         // =====================================
         // USERS ONLINE
@@ -62,6 +66,7 @@ function App() {
             setUsersOnline(count);
         };
 
+
         // =====================================
         // NORMAL CODE UPDATE
         // =====================================
@@ -72,7 +77,55 @@ function App() {
             );
 
             setCode(updatedCode);
+
+            // Also update Yjs document
+            if (ytext.length > 0) {
+                ytext.delete(
+                    0,
+                    ytext.length
+                );
+            }
+
+            if (updatedCode.length > 0) {
+                ytext.insert(
+                    0,
+                    updatedCode
+                );
+            }
         };
+
+
+        // =====================================
+        // RECEIVE EXISTING ROOM CODE
+        // =====================================
+        const handleRoomCode = (existingCode) => {
+            console.log(
+                "Received existing room code:",
+                existingCode
+            );
+
+            const receivedCode =
+                existingCode || "";
+
+            // Update React state
+            setCode(receivedCode);
+
+            // Update Yjs document
+            if (ytext.length > 0) {
+                ytext.delete(
+                    0,
+                    ytext.length
+                );
+            }
+
+            if (receivedCode.length > 0) {
+                ytext.insert(
+                    0,
+                    receivedCode
+                );
+            }
+        };
+
 
         // =====================================
         // RECEIVE YJS UPDATE
@@ -95,6 +148,7 @@ function App() {
                 ytext.toString()
             );
         };
+
 
         // =====================================
         // SEND LOCAL YJS UPDATE
@@ -131,6 +185,7 @@ function App() {
             );
         };
 
+
         // =====================================
         // SOCKET LISTENERS
         // =====================================
@@ -155,9 +210,15 @@ function App() {
         );
 
         socket.on(
+            "room-code",
+            handleRoomCode
+        );
+
+        socket.on(
             "yjs-update",
             handleYjsUpdate
         );
+
 
         // =====================================
         // YJS LISTENER
@@ -166,6 +227,7 @@ function App() {
             "update",
             handleYjsLocalUpdate
         );
+
 
         // =====================================
         // CLEANUP
@@ -192,6 +254,11 @@ function App() {
             );
 
             socket.off(
+                "room-code",
+                handleRoomCode
+            );
+
+            socket.off(
                 "yjs-update",
                 handleYjsUpdate
             );
@@ -208,6 +275,7 @@ function App() {
         };
     }, []);
 
+
     // =====================================
     // JOIN ROOM
     // =====================================
@@ -223,6 +291,7 @@ function App() {
             return;
         }
 
+
         // Leave previous room
         if (roomId) {
             socket.emit(
@@ -231,13 +300,32 @@ function App() {
             );
         }
 
+
+        // Clear old code before joining
+        setCode("");
+
+        const ytext =
+            ytextRef.current;
+
+        if (ytext && ytext.length > 0) {
+            ytext.delete(
+                0,
+                ytext.length
+            );
+        }
+
+
+        // Store current room
         roomIdRef.current =
             trimmedRoomId;
 
+
+        // Join new room
         socket.emit(
             "join-room",
             trimmedRoomId
         );
+
 
         setRoomId(
             trimmedRoomId
@@ -247,11 +335,13 @@ function App() {
 
         setUsersOnline(0);
 
+
         console.log(
             "Joined Room:",
             trimmedRoomId
         );
     };
+
 
     // =====================================
     // CREATE ROOM
@@ -260,12 +350,30 @@ function App() {
         const newRoomId =
             Date.now().toString();
 
+
+        // Clear old code
+        setCode("");
+
+        const ytext =
+            ytextRef.current;
+
+        if (ytext && ytext.length > 0) {
+            ytext.delete(
+                0,
+                ytext.length
+            );
+        }
+
+
         setRoomInput(
             newRoomId
         );
 
+
+        // Store current room
         roomIdRef.current =
             newRoomId;
+
 
         setRoomId(
             newRoomId
@@ -275,10 +383,12 @@ function App() {
 
         setUsersOnline(0);
 
+
         socket.emit(
             "join-room",
             newRoomId
         );
+
 
         console.log(
             "Created Room:",
@@ -286,10 +396,12 @@ function App() {
         );
     };
 
+
     // =====================================
     // LEAVE ROOM
     // =====================================
     const leaveRoom = () => {
+
         if (roomId) {
             socket.emit(
                 "leave-room",
@@ -297,6 +409,8 @@ function App() {
             );
         }
 
+
+        // Clear room reference
         roomIdRef.current = "";
 
         setRoomId("");
@@ -309,6 +423,7 @@ function App() {
 
         setCode("");
 
+
         // Clear Yjs document
         const ydoc =
             ydocRef.current;
@@ -316,22 +431,29 @@ function App() {
         const ytext =
             ytextRef.current;
 
+
         if (ydoc && ytext) {
             ydoc.transact(
                 () => {
-                    ytext.delete(
-                        0,
-                        ytext.length
-                    );
+
+                    if (ytext.length > 0) {
+                        ytext.delete(
+                            0,
+                            ytext.length
+                        );
+                    }
+
                 },
                 "remote"
             );
         }
 
+
         console.log(
             "Left room"
         );
     };
+
 
     // =====================================
     // EDITOR CHANGE
@@ -339,12 +461,15 @@ function App() {
     const handleEditorChange = (
         value
     ) => {
+
         const newCode =
             value || "";
+
 
         setCode(
             newCode
         );
+
 
         const ydoc =
             ydocRef.current;
@@ -352,27 +477,56 @@ function App() {
         const ytext =
             ytextRef.current;
 
+
         if (!ydoc || !ytext) {
             return;
         }
 
+
+        // Update Yjs document
         ydoc.transact(
             () => {
-                ytext.delete(
-                    0,
-                    ytext.length
-                );
 
+                // Remove old text
+                if (ytext.length > 0) {
+                    ytext.delete(
+                        0,
+                        ytext.length
+                    );
+                }
+
+
+                // Insert new text
                 if (newCode.length > 0) {
                     ytext.insert(
                         0,
                         newCode
                     );
                 }
+
             },
             "local"
         );
+
+
+        // =====================================
+        // ALSO SEND NORMAL CODE UPDATE
+        // =====================================
+        if (roomIdRef.current) {
+
+            socket.emit(
+                "code-change",
+                {
+                    roomId:
+                        roomIdRef.current,
+
+                    code:
+                        newCode
+                }
+            );
+        }
     };
+
 
     // =====================================
     // ROOM SELECTION SCREEN
@@ -397,11 +551,13 @@ function App() {
                         : " 🔴 Disconnected"}
                 </p>
 
+
                 <div className="room-box">
 
                     <h2>
                         Join a Room
                     </h2>
+
 
                     <input
                         type="text"
@@ -414,15 +570,18 @@ function App() {
                         }
                     />
 
+
                     <button
                         onClick={joinRoom}
                     >
                         Join Room
                     </button>
 
+
                     <p>
                         OR
                     </p>
+
 
                     <button
                         onClick={createRoom}
@@ -436,6 +595,7 @@ function App() {
         );
     }
 
+
     // =====================================
     // CODE EDITOR SCREEN
     // =====================================
@@ -446,9 +606,11 @@ function App() {
                 SyncSpace 🚀
             </h1>
 
+
             <h3>
                 Room ID: {roomId}
             </h3>
+
 
             <p>
                 Status:
@@ -457,10 +619,12 @@ function App() {
                     : " 🔴 Disconnected"}
             </p>
 
+
             <p>
                 👥 Users Online:{" "}
                 {usersOnline}
             </p>
+
 
             {/* LEAVE ROOM BUTTON */}
             <button
@@ -468,6 +632,7 @@ function App() {
             >
                 Leave Room
             </button>
+
 
             <Editor
                 height="500px"

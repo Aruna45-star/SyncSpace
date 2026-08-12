@@ -20,6 +20,11 @@ const io = new Server(server, {
     }
 });
 
+// =====================================
+// STORE LATEST CODE FOR EACH ROOM
+// =====================================
+const roomCodes = new Map();
+
 // Socket connection
 io.on("connection", (socket) => {
 
@@ -28,6 +33,7 @@ io.on("connection", (socket) => {
         socket.id
     );
 
+
     // =========================
     // JOIN ROOM
     // =========================
@@ -35,14 +41,20 @@ io.on("connection", (socket) => {
 
         // If already in another room,
         // leave that room first
-        if (socket.roomId && socket.roomId !== roomId) {
+        if (
+            socket.roomId &&
+            socket.roomId !== roomId
+        ) {
 
-            const oldRoomId = socket.roomId;
+            const oldRoomId =
+                socket.roomId;
 
             socket.leave(oldRoomId);
 
             const oldRoomSize =
-                io.sockets.adapter.rooms.get(oldRoomId)?.size || 0;
+                io.sockets.adapter.rooms.get(
+                    oldRoomId
+                )?.size || 0;
 
             io.to(oldRoomId).emit(
                 "room-users",
@@ -54,6 +66,7 @@ io.on("connection", (socket) => {
             );
         }
 
+
         // Join new room
         socket.join(roomId);
 
@@ -64,45 +77,70 @@ io.on("connection", (socket) => {
             `${socket.id} joined room ${roomId}`
         );
 
-        // Get current room user count
-        const roomSize =
-            io.sockets.adapter.rooms.get(roomId)?.size || 0;
 
-        // Send count to everyone in room
+        // =========================
+        // SEND EXISTING ROOM CODE
+        // =========================
+
+        const existingCode =
+            roomCodes.get(roomId) || "";
+
+        socket.emit(
+            "room-code",
+            existingCode
+        );
+
+
+        // =========================
+        // UPDATE USER COUNT
+        // =========================
+
+        const roomSize =
+            io.sockets.adapter.rooms.get(
+                roomId
+            )?.size || 0;
+
         io.to(roomId).emit(
             "room-users",
             roomSize
         );
+
     });
 
 
     // =========================
     // LEAVE ROOM
     // =========================
-    socket.on("leave-room", (roomId) => {
+    socket.on(
+        "leave-room",
+        (roomId) => {
 
-        // Leave the Socket.io room
-        socket.leave(roomId);
+            socket.leave(roomId);
 
-        console.log(
-            `${socket.id} left room ${roomId}`
-        );
+            console.log(
+                `${socket.id} left room ${roomId}`
+            );
 
-        // Clear stored room ID
-        if (socket.roomId === roomId) {
-            socket.roomId = null;
+            // Clear stored room ID
+            if (
+                socket.roomId === roomId
+            ) {
+                socket.roomId = null;
+            }
+
+            // Get remaining users
+            const roomSize =
+                io.sockets.adapter.rooms.get(
+                    roomId
+                )?.size || 0;
+
+            // Update remaining users
+            io.to(roomId).emit(
+                "room-users",
+                roomSize
+            );
         }
-
-        // Get remaining users
-        const roomSize =
-            io.sockets.adapter.rooms.get(roomId)?.size || 0;
-
-        // Tell remaining users
-        io.to(roomId).emit(
-            "room-users",
-            roomSize
-        );
-    });
+    );
 
 
     // =========================
@@ -112,6 +150,17 @@ io.on("connection", (socket) => {
         "code-change",
         ({ roomId, code }) => {
 
+            // Store latest code
+            roomCodes.set(
+                roomId,
+                code
+            );
+
+            console.log(
+                `Code updated in room ${roomId}`
+            );
+
+            // Send code to other users
             socket
                 .to(roomId)
                 .emit(
@@ -146,26 +195,32 @@ io.on("connection", (socket) => {
     // =========================
     // DISCONNECT
     // =========================
-    socket.on("disconnect", () => {
+    socket.on(
+        "disconnect",
+        () => {
 
-        console.log(
-            "User disconnected:",
-            socket.id
-        );
-
-        const roomId = socket.roomId;
-
-        if (roomId) {
-
-            const roomSize =
-                io.sockets.adapter.rooms.get(roomId)?.size || 0;
-
-            io.to(roomId).emit(
-                "room-users",
-                roomSize
+            console.log(
+                "User disconnected:",
+                socket.id
             );
+
+            const roomId =
+                socket.roomId;
+
+            if (roomId) {
+
+                const roomSize =
+                    io.sockets.adapter.rooms.get(
+                        roomId
+                    )?.size || 0;
+
+                io.to(roomId).emit(
+                    "room-users",
+                    roomSize
+                );
+            }
         }
-    });
+    );
 
 });
 
@@ -173,9 +228,12 @@ io.on("connection", (socket) => {
 // =========================
 // START SERVER
 // =========================
-server.listen(PORT, () => {
+server.listen(
+    PORT,
+    () => {
 
-    console.log(
-        `Server running on port ${PORT}`
-    );
-});
+        console.log(
+            `Server running on port ${PORT}`
+        );
+    }
+);
