@@ -1,184 +1,836 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
+/* =========================================================
+   SYNCSpace - WARM PREMIUM ORANGE / PEACH DEVELOPER UI
+   ========================================================= */
 
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+:root {
+  --bg: #0b0a09;
+  --bg-soft: #110e0c;
+  --panel: #17120f;
+  --panel-2: #1d1612;
+  --panel-3: #120e0c;
+
+  --border: rgba(253, 186, 116, 0.13);
+  --border-strong: rgba(251, 146, 60, 0.3);
+
+  --text: #fff7ed;
+  --text-soft: #d6d3d1;
+  --text-muted: #a8a29e;
+
+  --accent: #f97316;
+  --accent-2: #ea580c;
+  --accent-soft: #fb923c;
+
+  --peach: #fdba74;
+  --peach-light: #fed7aa;
+
+  --success: #22c55e;
+  --danger: #f43f5e;
+
+  --shadow: rgba(0, 0, 0, 0.42);
 }
 
-.hero {
-  position: relative;
+/* =========================================================
+   RESET
+   ========================================================= */
 
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+* {
+  box-sizing: border-box;
 }
 
-#center {
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+
+  color: var(--text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(249, 115, 22, 0.12),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 88% 12%,
+      rgba(253, 186, 116, 0.08),
+      transparent 28%
+    ),
+    var(--bg);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* =========================================================
+   MAIN APP
+   ========================================================= */
+
+.container {
+  width: 100%;
+  min-height: 100vh;
+
+  margin: 0;
+  padding: 0;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15, 11, 9, 0.98),
+      rgba(7, 6, 5, 1)
+    );
+}
+
+/* =========================================================
+   TOP HEADER
+   ========================================================= */
+
+.container > h1:first-child {
+  margin: 0;
+  padding: 18px 24px 12px;
+
+  color: #fffaf5;
+
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+
+  border-bottom: 1px solid var(--border);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(27, 20, 16, 0.98),
+      rgba(13, 10, 8, 0.98)
+    );
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+/* =========================================================
+   LOGIN / ROOM SELECTION SCREEN
+   ========================================================= */
+
+.container:has(.room-box) {
+  min-height: 100vh;
+
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
+  align-items: center;
+  justify-content: center;
 
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  padding: 32px 20px;
+
+  background:
+    radial-gradient(
+      circle at 18% 18%,
+      rgba(249, 115, 22, 0.13),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 82% 80%,
+      rgba(253, 186, 116, 0.08),
+      transparent 34%
+    ),
+    #090807;
 }
 
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
+.container:has(.room-box) > h1:first-child {
+  width: auto;
 
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-#next-steps ul {
-  list-style: none;
+  margin: 0 0 8px;
   padding: 0;
-  display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
 
-  .logo {
-    height: 18px;
-  }
+  border: none;
 
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
+  background: transparent;
 
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
+  color: #fff7ed;
 
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
+  font-size: 35px;
 
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  box-shadow: none;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.container:has(.room-box) > p {
+  margin: 0 0 28px;
+
+  color: var(--text-muted);
+
+  font-size: 14px;
 }
 
-.ticks {
-  position: relative;
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.room-box {
+  width: min(460px, 100%);
+
+  padding: 28px;
+
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30, 22, 17, 0.92),
+      rgba(17, 13, 11, 0.94)
+    );
+
+  box-shadow:
+    0 28px 80px var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+
+  backdrop-filter: blur(20px);
+}
+
+.room-box h2 {
+  margin: 0 0 20px;
+
+  color: #fffaf5;
+
+  font-size: 19px;
+  font-weight: 750;
+}
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.room-box input {
   width: 100%;
+  height: 46px;
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
+  margin: 7px 0;
+
+  padding: 0 14px;
+
+  outline: none;
+
+  color: #fff7ed;
+
+  background: rgba(12, 9, 7, 0.8);
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.room-box input::placeholder {
+  color: #78716c;
+}
+
+.room-box input:hover {
+  border-color: var(--border-strong);
+}
+
+.room-box input:focus {
+  border-color: rgba(249, 115, 22, 0.7);
+
+  background: rgba(12, 9, 7, 0.95);
+
+  box-shadow:
+    0 0 0 3px rgba(249, 115, 22, 0.11);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.room-box button,
+.container > button {
+  min-height: 42px;
+
+  padding: 0 16px;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  color: #fffaf5;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent),
+      var(--accent-2)
+    );
+
+  font-size: 13px;
+  font-weight: 750;
+
+  box-shadow:
+    0 8px 22px rgba(249, 115, 22, 0.14);
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
+}
+
+.room-box button {
+  width: 100%;
+  margin-top: 9px;
+}
+
+.room-box button:hover:not(:disabled),
+.container > button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  filter: brightness(1.07);
+
+  box-shadow:
+    0 12px 30px rgba(249, 115, 22, 0.21);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.room-box p {
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   ROOM SELECTION
+   ========================================================= */
+
+.container > h2 {
+  margin: 20px 24px 6px;
+
+  color: #fff7ed;
+
+  font-size: 17px;
+}
+
+.container > h2 + p {
+  margin: 0 24px 20px;
+
+  color: var(--text-muted);
+
+  font-size: 13px;
+}
+
+.container > .room-box {
+  margin: 0 24px 16px;
+}
+
+/* =========================================================
+   EDITOR HEADER
+   ========================================================= */
+
+.container > h3 {
+  margin: 12px 24px;
+
+  color: var(--text-soft);
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.container > .room-header {
+  margin: 10px 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 12px 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(31, 23, 18, 0.92),
+      rgba(18, 13, 10, 0.94)
+    );
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.2);
+}
+
+.room-header h3 {
+  margin: 0;
+
+  color: var(--peach-light);
+
+  font-family:
+    "JetBrains Mono",
+    "Fira Code",
+    Consolas,
+    monospace;
+
+  font-size: 12px;
+
+  word-break: break-all;
+}
+
+.room-header button {
+  flex-shrink: 0;
+
+  height: 38px;
+
+  padding: 0 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  background: #211712;
+
+  color: var(--peach-light);
+
+  font-size: 12px;
+  font-weight: 700;
+
+  box-shadow: none;
+
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.room-header button:hover {
+  background: #2b1b13;
+
+  border-color:
+    var(--border-strong);
+
+  transform: translateY(-1px);
+
+  box-shadow: none;
+}
+
+/* =========================================================
+   ROOM NAME
+   ========================================================= */
+
+.container > h3:nth-of-type(2) {
+  margin-top: 18px;
+
+  color: var(--peach);
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.container > p {
+  margin-left: 24px;
+  margin-right: 24px;
+
+  color: var(--text-muted);
+
+  font-size: 12px;
+}
+
+.container > p:has(+ .member-tabs) {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  margin-top: 8px;
+  margin-bottom: 8px;
+
+  padding: 7px 10px;
+
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 999px;
+
+  background:
+    rgba(34, 197, 94, 0.05);
+
+  color: #86efac;
+
+  font-weight: 700;
+}
+
+/* =========================================================
+   MEMBER TABS
+   ========================================================= */
+
+.member-tabs {
+  padding: 4px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background:
+    rgba(20, 14, 11, 0.76);
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.member-tabs button {
+  min-height: 38px;
+
+  padding: 0 14px;
+
+  border-radius: 9px;
+
+  color: #f5f5f4;
+
+  background: #211712;
+
+  border: 1px solid var(--border);
+
+  box-shadow: none;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.member-tabs button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  background: #2a1b14;
+
+  border-color:
+    var(--border-strong);
+
+  box-shadow: none;
+}
+
+/* Active tab */
+
+.member-tabs button[style*="linear-gradient"] {
+  background:
+    linear-gradient(
+      135deg,
+      #f97316,
+      #ea580c
+    ) !important;
+
+  border-color:
+    rgba(253, 186, 116, 0.55) !important;
+
+  color: #fffaf5 !important;
+
+  box-shadow:
+    0 8px 20px rgba(249, 115, 22, 0.2) !important;
+}
+
+/* =========================================================
+   MEMBERS PANEL
+   ========================================================= */
+
+.room-members {
+  width: calc(100% - 48px);
+
+  margin: 16px 24px;
+
+  padding: 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(26, 19, 15, 0.94),
+      rgba(14, 10, 8, 0.96)
+    );
+
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.23);
+}
+
+.room-members h3 {
+  margin: 0 0 12px;
+
+  color: #fff7ed;
+
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  padding: 10px;
+
+  margin: 5px 0;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  background:
+    rgba(30, 21, 16, 0.68);
+
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.member:hover {
+  transform: translateX(2px);
+
+  background:
+    rgba(48, 31, 21, 0.78);
+
+  border-color: var(--border);
+}
+
+.avatar {
+  width: 35px;
+  height: 35px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 9px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #f97316,
+      #fb923c
+    );
+
+  color: #fffaf5;
+
+  font-size: 13px;
+  font-weight: 850;
+
+  box-shadow:
+    0 7px 18px rgba(249, 115, 22, 0.18);
+}
+
+.member strong {
+  display: block;
+
+  color: #fff7ed;
+
+  font-size: 12px;
+}
+
+.member small {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #a8a29e;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   LEAVE / LOGOUT
+   ========================================================= */
+
+.room-members + button {
+  margin-left: 24px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #be123c,
+      #e11d48
+    );
+
+  box-shadow:
+    0 8px 22px rgba(225, 29, 72, 0.13);
+}
+
+.room-members + button + button {
+  background: #211712;
+
+  border-color: var(--border);
+
+  box-shadow: none;
+}
+
+.room-members + button + button:hover:not(:disabled) {
+  background: #2a1b14;
+
+  box-shadow: none;
+}
+
+/* =========================================================
+   MONACO EDITOR
+   ========================================================= */
+
+.monaco-editor {
+  width: calc(100% - 48px) !important;
+
+  margin:
+    18px 24px 24px !important;
+
+  border:
+    1px solid var(--border-strong) !important;
+
+  border-radius:
+    14px !important;
+
+  overflow: hidden !important;
+
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.42) !important;
+}
+
+/* =========================================================
+   ERROR MESSAGE
+   ========================================================= */
+
+.room-box p[style*="red"] {
+  padding: 9px 10px;
+
+  border:
+    1px solid rgba(244, 63, 94, 0.18);
+
+  border-radius: 9px;
+
+  background:
+    rgba(127, 29, 29, 0.15);
+
+  color: #fda4af !important;
+
+  font-size: 12px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .container > .room-header {
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
   }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+  .room-header button {
+    width: 100%;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+
+  .member-tabs {
+    margin-left: 14px !important;
+    margin-right: 14px !important;
+  }
+
+  .room-members {
+    width:
+      calc(100% - 28px);
+
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .container > h3,
+  .container > p {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .container > .room-header {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .monaco-editor {
+    width:
+      calc(100% - 28px) !important;
+
+    margin-left:
+      14px !important;
+
+    margin-right:
+      14px !important;
+  }
+
+  .room-members + button {
+    margin-left: 14px;
+  }
+}
+
+@media (max-width: 520px) {
+  .container:has(.room-box) {
+    padding: 16px;
+  }
+
+  .room-box {
+    padding: 20px;
+  }
+
+  .container > h1:first-child {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .member-tabs {
+    gap: 6px !important;
+  }
+
+  .member-tabs button {
+    flex:
+      1 1 calc(50% - 6px);
+
+    min-width: 120px;
+  }
+
+  .room-members + button,
+  .room-members + button + button {
+    width:
+      calc(100% - 28px);
+
+    margin-left: 14px;
+  }
+
+  .room-members + button + button {
+    margin-top: 7px;
   }
 }

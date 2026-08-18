@@ -16,56 +16,96 @@ function App() {
     );
 
     const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem("user");
-        return savedUser ? JSON.parse(savedUser) : null;
+        const savedUser =
+            localStorage.getItem("user");
+
+        return savedUser
+            ? JSON.parse(savedUser)
+            : null;
     });
 
     // =========================================
     // AUTH FORM
     // =========================================
 
-    const [isRegister, setIsRegister] = useState(false);
+    const [isRegister, setIsRegister] =
+        useState(false);
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [password, setPassword] =
+        useState("");
 
-    const [authLoading, setAuthLoading] = useState(false);
-    const [authError, setAuthError] = useState("");
+    const [authLoading, setAuthLoading] =
+        useState(false);
+
+    const [authError, setAuthError] =
+        useState("");
 
     // =========================================
-    // APP STATE
+    // ROOM STATE
     // =========================================
 
-    const [connected, setConnected] = useState(false);
+    const [connected, setConnected] =
+        useState(false);
 
-    const [roomId, setRoomId] = useState("");
-    const [roomInput, setRoomInput] = useState("");
+    const [roomId, setRoomId] =
+        useState("");
 
-    // Input used only when creating a room
-    const [roomNameInput, setRoomNameInput] = useState("");
+    const [roomInput, setRoomInput] =
+        useState("");
 
-    // Actual room name of the current room
-    const [roomName, setRoomName] = useState("");
+    const [roomNameInput, setRoomNameInput] =
+        useState("");
 
-    const [joinedRoom, setJoinedRoom] = useState(false);
+    const [roomName, setRoomName] =
+        useState("");
 
-    const [code, setCode] = useState("");
+    const [joinedRoom, setJoinedRoom] =
+        useState(false);
 
-    const [usersOnline, setUsersOnline] = useState(0);
+    // =========================================
+    // INDIVIDUAL MEMBER CODES
+    // =========================================
 
-    const [roomMembers, setRoomMembers] = useState([]);
+    const [memberCodes, setMemberCodes] =
+        useState({});
 
-    const [roomError, setRoomError] = useState("");
-    const [roomLoading, setRoomLoading] = useState(false);
+    const [activeMemberId, setActiveMemberId] =
+        useState("");
+
+    // =========================================
+    // ROOM PRESENCE
+    // =========================================
+
+    const [usersOnline, setUsersOnline] =
+        useState(0);
+
+    const [roomMembers, setRoomMembers] =
+        useState([]);
+
+    const [roomError, setRoomError] =
+        useState("");
+
+    const [roomLoading, setRoomLoading] =
+        useState(false);
 
     // =========================================
     // REFS
     // =========================================
 
     const roomIdRef = useRef("");
+
     const tokenRef = useRef(token);
-    const joinedRoomRef = useRef(false);
+
+    const userIdRef = useRef(
+        user?.id ||
+        user?._id ||
+        ""
+    );
+
+    const activeMemberIdRef =
+        useRef("");
 
     // =========================================
     // KEEP REFS UPDATED
@@ -76,8 +116,19 @@ function App() {
     }, [token]);
 
     useEffect(() => {
-        joinedRoomRef.current = joinedRoom;
-    }, [joinedRoom]);
+        const currentUserId =
+            user?.id ||
+            user?._id ||
+            "";
+
+        userIdRef.current =
+            String(currentUserId);
+    }, [user]);
+
+    useEffect(() => {
+        activeMemberIdRef.current =
+            String(activeMemberId || "");
+    }, [activeMemberId]);
 
     // =========================================
     // AUTH CONFIG
@@ -86,51 +137,97 @@ function App() {
     const getAuthConfig = () => {
         return {
             headers: {
-                Authorization: `Bearer ${tokenRef.current}`,
+                Authorization:
+                    `Bearer ${tokenRef.current}`,
             },
         };
+    };
+
+    // =========================================
+    // CURRENT USER ID
+    // =========================================
+
+    const getCurrentUserId = () => {
+        return String(
+            user?.id ||
+            user?._id ||
+            ""
+        );
     };
 
     // =========================================
     // LOAD ROOM MEMBERS
     // =========================================
 
-    const loadRoomMembers = async (currentRoomId) => {
+    const loadRoomMembers = async (
+        currentRoomId
+    ) => {
         if (!currentRoomId) {
-            return;
+            return null;
         }
 
         try {
-            const response = await axios.get(
-                `${API_URL}/rooms/${currentRoomId}`,
-                getAuthConfig()
-            );
+            const response =
+                await axios.get(
+                    `${API_URL}/rooms/${currentRoomId}`,
+                    getAuthConfig()
+                );
 
-            const room = response.data.room;
+            const room =
+                response.data.room;
 
-            const members = room?.users || [];
+            const members =
+                room?.users || [];
 
-            const uniqueMembers = Array.from(
-                new Map(
-                    members.map((member) => [
-                        String(member._id || member.id),
-                        member,
-                    ])
-                ).values()
-            );
+            const uniqueMembers =
+                Array.from(
+                    new Map(
+                        members.map(
+                            (member) => [
+                                String(
+                                    member._id ||
+                                    member.id
+                                ),
+                                member,
+                            ]
+                        )
+                    ).values()
+                );
 
             console.log(
                 "ROOM MEMBERS:",
                 uniqueMembers
             );
 
-            setRoomMembers(uniqueMembers);
+            setRoomMembers(
+                uniqueMembers
+            );
+
+            return room;
         } catch (error) {
             console.error(
                 "LOAD ROOM MEMBERS ERROR:",
                 error
             );
+
+            return null;
         }
+    };
+
+    // =========================================
+    // SELECT MEMBER
+    // =========================================
+
+    const selectMember = (
+        memberId
+    ) => {
+        const id =
+            String(memberId);
+
+        setActiveMemberId(id);
+
+        activeMemberIdRef.current =
+            id;
     };
 
     // =========================================
@@ -138,10 +235,6 @@ function App() {
     // =========================================
 
     useEffect(() => {
-        // =====================================
-        // CONNECT
-        // =====================================
-
         const handleConnect = () => {
             console.log(
                 "Socket Connected:",
@@ -153,7 +246,13 @@ function App() {
             const currentRoom =
                 roomIdRef.current;
 
-            if (currentRoom) {
+            const currentUserId =
+                userIdRef.current;
+
+            if (
+                currentRoom &&
+                currentUserId
+            ) {
                 console.log(
                     "Rejoining room after reconnect:",
                     currentRoom
@@ -161,14 +260,23 @@ function App() {
 
                 socket.emit(
                     "join-room",
-                    currentRoom
+                    {
+                        roomId:
+                            currentRoom,
+                        userId:
+                            currentUserId,
+                    }
+                );
+
+                socket.emit(
+                    "get-room-member-codes",
+                    {
+                        roomId:
+                            currentRoom,
+                    }
                 );
             }
         };
-
-        // =====================================
-        // DISCONNECT
-        // =====================================
 
         const handleDisconnect = () => {
             console.log(
@@ -178,11 +286,9 @@ function App() {
             setConnected(false);
         };
 
-        // =====================================
-        // ROOM USERS
-        // =====================================
-
-        const handleRoomUsers = async (count) => {
+        const handleRoomUsers = async (
+            count
+        ) => {
             console.log(
                 "Users Online:",
                 count
@@ -200,43 +306,146 @@ function App() {
             }
         };
 
-        // =====================================
-        // INITIAL ROOM CODE
-        // =====================================
-
-        const handleRoomCode = (existingCode) => {
-            console.log(
-                "Existing room code:",
-                existingCode
-            );
-
-            if (!roomIdRef.current) {
+        const handleMemberCode = (
+            payload
+        ) => {
+            if (
+                !payload ||
+                !payload.userId
+            ) {
                 return;
             }
 
-            setCode(existingCode || "");
-        };
+            const memberId =
+                String(
+                    payload.userId
+                );
 
-        // =====================================
-        // REAL-TIME CODE UPDATE
-        // =====================================
+            const memberCode =
+                payload.code || "";
 
-        const handleCodeUpdate = (updatedCode) => {
             console.log(
-                "Received code update:",
-                updatedCode
+                "Received member code:",
+                {
+                    memberId,
+                    length:
+                        memberCode.length,
+                }
             );
 
-            if (!roomIdRef.current) {
+            setMemberCodes(
+                (previous) => ({
+                    ...previous,
+                    [memberId]:
+                        memberCode,
+                })
+            );
+        };
+
+        const handleRoomMemberCodes = (
+            codes
+        ) => {
+            if (
+                !codes ||
+                typeof codes !==
+                    "object"
+            ) {
                 return;
             }
 
-            setCode(updatedCode || "");
+            const normalizedCodes =
+                Object.fromEntries(
+                    Object.entries(
+                        codes
+                    ).map(
+                        ([
+                            userId,
+                            userCode,
+                        ]) => [
+                            String(
+                                userId
+                            ),
+                            userCode || "",
+                        ]
+                    )
+                );
+
+            console.log(
+                "ROOM MEMBER CODES:",
+                normalizedCodes
+            );
+
+            setMemberCodes(
+                normalizedCodes
+            );
+
+            const currentActiveMember =
+                String(
+                    activeMemberIdRef.current ||
+                    ""
+                );
+
+            const currentUserId =
+                String(
+                    userIdRef.current ||
+                    ""
+                );
+
+            if (
+                currentActiveMember &&
+                Object.prototype.hasOwnProperty.call(
+                    normalizedCodes,
+                    currentActiveMember
+                )
+            ) {
+                return;
+            }
+
+            if (currentUserId) {
+                setActiveMemberId(
+                    currentUserId
+                );
+
+                activeMemberIdRef.current =
+                    currentUserId;
+            }
         };
 
-        // =====================================
-        // SOCKET LISTENERS
-        // =====================================
+        const handleMemberCodeUpdate = (
+            payload
+        ) => {
+            if (
+                !payload ||
+                !payload.userId
+            ) {
+                return;
+            }
+
+            const memberId =
+                String(
+                    payload.userId
+                );
+
+            const updatedCode =
+                payload.code || "";
+
+            console.log(
+                "Member code update:",
+                {
+                    memberId,
+                    length:
+                        updatedCode.length,
+                }
+            );
+
+            setMemberCodes(
+                (previous) => ({
+                    ...previous,
+                    [memberId]:
+                        updatedCode,
+                })
+            );
+        };
 
         socket.on(
             "connect",
@@ -254,26 +463,23 @@ function App() {
         );
 
         socket.on(
-            "room-code",
-            handleRoomCode
+            "member-code",
+            handleMemberCode
         );
 
         socket.on(
-            "code-update",
-            handleCodeUpdate
+            "room-member-codes",
+            handleRoomMemberCodes
         );
 
-        // =====================================
-        // INITIAL STATUS
-        // =====================================
+        socket.on(
+            "member-code-update",
+            handleMemberCodeUpdate
+        );
 
         if (socket.connected) {
             setConnected(true);
         }
-
-        // =====================================
-        // CLEANUP
-        // =====================================
 
         return () => {
             socket.off(
@@ -292,22 +498,29 @@ function App() {
             );
 
             socket.off(
-                "room-code",
-                handleRoomCode
+                "member-code",
+                handleMemberCode
             );
 
             socket.off(
-                "code-update",
-                handleCodeUpdate
+                "room-member-codes",
+                handleRoomMemberCodes
+            );
+
+            socket.off(
+                "member-code-update",
+                handleMemberCodeUpdate
             );
         };
     }, []);
 
     // =========================================
-    // REGISTER / LOGIN
+    // AUTH
     // =========================================
 
-    const handleAuth = async (e) => {
+    const handleAuth = async (
+        e
+    ) => {
         e.preventDefault();
 
         setAuthError("");
@@ -327,10 +540,13 @@ function App() {
 
                 alert(
                     response.data.message ||
-                        "Registration successful"
+                    "Registration successful"
                 );
 
-                setIsRegister(false);
+                setIsRegister(
+                    false
+                );
+
                 setName("");
                 setEmail("");
                 setPassword("");
@@ -350,6 +566,13 @@ function App() {
                 const receivedUser =
                     response.data.user;
 
+                const receivedUserId =
+                    String(
+                        receivedUser.id ||
+                        receivedUser._id ||
+                        ""
+                    );
+
                 localStorage.setItem(
                     "token",
                     receivedToken
@@ -365,8 +588,16 @@ function App() {
                 tokenRef.current =
                     receivedToken;
 
-                setToken(receivedToken);
-                setUser(receivedUser);
+                userIdRef.current =
+                    receivedUserId;
+
+                setToken(
+                    receivedToken
+                );
+
+                setUser(
+                    receivedUser
+                );
 
                 setPassword("");
             }
@@ -379,10 +610,12 @@ function App() {
             setAuthError(
                 error.response?.data
                     ?.message ||
-                    "Something went wrong"
+                "Something went wrong"
             );
         } finally {
-            setAuthLoading(false);
+            setAuthLoading(
+                false
+            );
         }
     };
 
@@ -394,6 +627,9 @@ function App() {
         const currentRoom =
             roomIdRef.current;
 
+        const currentUserId =
+            getCurrentUserId();
+
         if (currentRoom) {
             socket.emit(
                 "leave-room",
@@ -401,13 +637,14 @@ function App() {
             );
 
             try {
-                if (user?.id) {
+                if (currentUserId) {
                     await axios.delete(
                         `${API_URL}/rooms/${currentRoom}/leave`,
                         {
                             ...getAuthConfig(),
                             data: {
-                                userId: user.id,
+                                userId:
+                                    currentUserId,
                             },
                         }
                     );
@@ -421,7 +658,9 @@ function App() {
         }
 
         roomIdRef.current = "";
-        joinedRoomRef.current = false;
+        userIdRef.current = "";
+        activeMemberIdRef.current =
+            "";
 
         setRoomId("");
         setRoomInput("");
@@ -430,10 +669,16 @@ function App() {
         setJoinedRoom(false);
         setUsersOnline(0);
         setRoomMembers([]);
-        setCode("");
+        setMemberCodes({});
+        setActiveMemberId("");
 
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.removeItem(
+            "token"
+        );
+
+        localStorage.removeItem(
+            "user"
+        );
 
         tokenRef.current = null;
 
@@ -445,19 +690,28 @@ function App() {
     // CREATE ROOM
     // =========================================
 
-    const createRoom = async (e) => {
+    const createRoom = async (
+        e
+    ) => {
         if (e) {
             e.preventDefault();
         }
-
-        console.log(
-            "CREATE ROOM FUNCTION CALLED"
-        );
 
         setRoomError("");
         setRoomLoading(true);
 
         try {
+            const currentUserId =
+                getCurrentUserId();
+
+            if (!currentUserId) {
+                setRoomError(
+                    "User information is missing. Please login again."
+                );
+
+                return;
+            }
+
             const nameToCreate =
                 roomNameInput.trim() ||
                 "Untitled Room";
@@ -466,8 +720,10 @@ function App() {
                 await axios.post(
                     `${API_URL}/rooms/create`,
                     {
-                        roomName: nameToCreate,
-                        userId: user?.id,
+                        roomName:
+                            nameToCreate,
+                        userId:
+                            currentUserId,
                     },
                     getAuthConfig()
                 );
@@ -483,48 +739,62 @@ function App() {
                 createdRoom.name ||
                 nameToCreate;
 
-            console.log(
-                "MongoDB Room Created:",
-                createdRoom
-            );
-
-            // =================================
-            // SET CURRENT ROOM
-            // =================================
-
             roomIdRef.current =
                 newRoomId;
 
-            joinedRoomRef.current = true;
-
-            setRoomId(newRoomId);
-            setRoomInput(newRoomId);
-            setRoomName(createdRoomName);
-            setRoomNameInput("");
-            setJoinedRoom(true);
-            setUsersOnline(0);
-            setRoomMembers([]);
-            setCode("");
-
-            // =================================
-            // JOIN SOCKET ROOM
-            // =================================
-
-            socket.emit(
-                "join-room",
+            setRoomId(
                 newRoomId
             );
 
-            // =================================
-            // LOAD MEMBERS
-            // =================================
+            setRoomInput(
+                newRoomId
+            );
+
+            setRoomName(
+                createdRoomName
+            );
+
+            setRoomNameInput("");
+
+            setJoinedRoom(
+                true
+            );
+
+            setUsersOnline(0);
+            setRoomMembers([]);
+            setMemberCodes({});
+
+            setActiveMemberId(
+                currentUserId
+            );
+
+            activeMemberIdRef.current =
+                currentUserId;
+
+            socket.emit(
+                "join-room",
+                {
+                    roomId:
+                        newRoomId,
+                    userId:
+                        currentUserId,
+                }
+            );
+
+            socket.emit(
+                "get-room-member-codes",
+                {
+                    roomId:
+                        newRoomId,
+                }
+            );
 
             await loadRoomMembers(
                 newRoomId
             );
 
             console.log(
-                "Joined created room:",
+                "Created and joined room:",
                 newRoomId
             );
         } catch (error) {
@@ -536,33 +806,31 @@ function App() {
             setRoomError(
                 error.response?.data
                     ?.message ||
-                    "Unable to create room"
+                "Unable to create room"
             );
         } finally {
-            setRoomLoading(false);
+            setRoomLoading(
+                false
+            );
         }
     };
 
     // =========================================
-    // JOIN EXISTING ROOM
+    // JOIN ROOM
     // =========================================
 
-    const joinRoom = async (e) => {
+    const joinRoom = async (
+        e
+    ) => {
         if (e) {
             e.preventDefault();
         }
 
-        console.log(
-            "JOIN ROOM FUNCTION CALLED"
-        );
-
         const enteredRoom =
             roomInput.trim();
 
-        console.log(
-            "ENTERED ROOM ID:",
-            enteredRoom
-        );
+        const currentUserId =
+            getCurrentUserId();
 
         if (!enteredRoom) {
             setRoomError(
@@ -572,14 +840,18 @@ function App() {
             return;
         }
 
+        if (!currentUserId) {
+            setRoomError(
+                "User information is missing. Please login again."
+            );
+
+            return;
+        }
+
         setRoomError("");
         setRoomLoading(true);
 
         try {
-            // =================================
-            // CHECK ROOM EXISTS
-            // =================================
-
             const response =
                 await axios.get(
                     `${API_URL}/rooms/${enteredRoom}`,
@@ -589,33 +861,19 @@ function App() {
             const foundRoom =
                 response.data.room;
 
-            console.log(
-                "Room found:",
-                foundRoom
-            );
-
             const foundRoomName =
                 foundRoom.roomName ||
                 foundRoom.name ||
                 "Untitled Room";
 
-            // =================================
-            // ADD USER TO MONGODB ROOM
-            // =================================
-
-            if (user?.id) {
-                await axios.post(
-                    `${API_URL}/rooms/${enteredRoom}/join`,
-                    {
-                        userId: user.id,
-                    },
-                    getAuthConfig()
-                );
-            }
-
-            // =================================
-            // LEAVE OLD SOCKET ROOM
-            // =================================
+            await axios.post(
+                `${API_URL}/rooms/${enteredRoom}/join`,
+                {
+                    userId:
+                        currentUserId,
+                },
+                getAuthConfig()
+            );
 
             const previousRoom =
                 roomIdRef.current;
@@ -630,39 +888,49 @@ function App() {
                 );
             }
 
-            // =================================
-            // SET CURRENT ROOM
-            // =================================
-
             roomIdRef.current =
                 enteredRoom;
 
-            joinedRoomRef.current = true;
-
-            setRoomId(enteredRoom);
-            setRoomName(foundRoomName);
-            setJoinedRoom(true);
-            setUsersOnline(0);
-            setRoomMembers([]);
-            setCode("");
-
-            // =================================
-            // JOIN SOCKET ROOM
-            // =================================
-
-            console.log(
-                "Joining socket room:",
+            setRoomId(
                 enteredRoom
             );
+
+            setRoomName(
+                foundRoomName
+            );
+
+            setJoinedRoom(
+                true
+            );
+
+            setUsersOnline(0);
+            setRoomMembers([]);
+            setMemberCodes({});
+
+            setActiveMemberId(
+                currentUserId
+            );
+
+            activeMemberIdRef.current =
+                currentUserId;
 
             socket.emit(
                 "join-room",
-                enteredRoom
+                {
+                    roomId:
+                        enteredRoom,
+                    userId:
+                        currentUserId,
+                }
             );
 
-            // =================================
-            // LOAD MEMBERS
-            // =================================
+            socket.emit(
+                "get-room-member-codes",
+                {
+                    roomId:
+                        enteredRoom,
+                }
+            );
 
             await loadRoomMembers(
                 enteredRoom
@@ -693,7 +961,9 @@ function App() {
                 );
             }
         } finally {
-            setRoomLoading(false);
+            setRoomLoading(
+                false
+            );
         }
     };
 
@@ -701,7 +971,9 @@ function App() {
     // LEAVE ROOM
     // =========================================
 
-    const leaveRoom = async (e) => {
+    const leaveRoom = async (
+        e
+    ) => {
         if (e) {
             e.preventDefault();
         }
@@ -709,60 +981,29 @@ function App() {
         const currentRoom =
             roomIdRef.current;
 
+        const currentUserId =
+            getCurrentUserId();
+
         if (!currentRoom) {
             return;
         }
-
-        console.log(
-            "Leaving room:",
-            currentRoom
-        );
-
-        // =================================
-        // SOCKET LEAVE
-        // =================================
 
         socket.emit(
             "leave-room",
             currentRoom
         );
 
-        // =================================
-        // RESET STATE
-        // =================================
-
-        roomIdRef.current = "";
-        joinedRoomRef.current = false;
-
-        setRoomId("");
-        setRoomInput("");
-        setRoomNameInput("");
-        setRoomName("");
-        setJoinedRoom(false);
-        setUsersOnline(0);
-        setRoomMembers([]);
-        setCode("");
-
-        // =================================
-        // REMOVE USER FROM DATABASE
-        // =================================
-
         try {
-            if (user?.id) {
-                const response =
-                    await axios.delete(
-                        `${API_URL}/rooms/${currentRoom}/leave`,
-                        {
-                            ...getAuthConfig(),
-                            data: {
-                                userId: user.id,
-                            },
-                        }
-                    );
-
-                console.log(
-                    "MongoDB leave response:",
-                    response.data
+            if (currentUserId) {
+                await axios.delete(
+                    `${API_URL}/rooms/${currentRoom}/leave`,
+                    {
+                        ...getAuthConfig(),
+                        data: {
+                            userId:
+                                currentUserId,
+                        },
+                    }
                 );
             }
         } catch (error) {
@@ -772,41 +1013,82 @@ function App() {
             );
         }
 
-        console.log(
-            "Successfully left room:",
-            currentRoom
-        );
+        roomIdRef.current = "";
+        activeMemberIdRef.current =
+            "";
+
+        setRoomId("");
+        setRoomInput("");
+        setRoomNameInput("");
+        setRoomName("");
+        setJoinedRoom(false);
+        setUsersOnline(0);
+        setRoomMembers([]);
+        setMemberCodes({});
+        setActiveMemberId("");
     };
 
     // =========================================
     // EDITOR CHANGE
     // =========================================
 
-    const handleEditorChange = (value) => {
-        const newCode = value || "";
-
-        setCode(newCode);
+    const handleEditorChange = (
+        value
+    ) => {
+        const newCode =
+            value || "";
 
         const currentRoom =
             roomIdRef.current;
+
+        const currentUserId =
+            getCurrentUserId();
+
+        const activeId =
+            String(
+                activeMemberIdRef.current ||
+                ""
+            );
 
         if (!currentRoom) {
             return;
         }
 
-        console.log(
-            "Sending code update:",
-            {
-                roomId: currentRoom,
-                length: newCode.length,
-            }
+        if (!currentUserId) {
+            return;
+        }
+
+        if (
+            activeId !==
+            String(currentUserId)
+        ) {
+            return;
+        }
+
+        setMemberCodes(
+            (previous) => ({
+                ...previous,
+
+                [String(
+                    currentUserId
+                )]:
+                    newCode,
+            })
         );
 
         socket.emit(
             "code-change",
             {
-                roomId: currentRoom,
-                code: newCode,
+                roomId:
+                    currentRoom,
+
+                userId:
+                    String(
+                        currentUserId
+                    ),
+
+                code:
+                    newCode,
             }
         );
     };
@@ -819,12 +1101,13 @@ function App() {
         return (
             <div className="container">
                 <h1>
-                    SyncSpace 🚀
+                    SyncSpace
                 </h1>
 
                 <p>
-                    Real-Time Collaborative
-                    Code Editor
+                    Real-Time
+                    Collaborative Code
+                    Editor
                 </p>
 
                 <div className="room-box">
@@ -844,7 +1127,9 @@ function App() {
                                 type="text"
                                 placeholder="Name"
                                 value={name}
-                                onChange={(e) =>
+                                onChange={(
+                                    e
+                                ) =>
                                     setName(
                                         e.target.value
                                     )
@@ -857,7 +1142,9 @@ function App() {
                             type="email"
                             placeholder="Email"
                             value={email}
-                            onChange={(e) =>
+                            onChange={(
+                                e
+                            ) =>
                                 setEmail(
                                     e.target.value
                                 )
@@ -868,8 +1155,12 @@ function App() {
                         <input
                             type="password"
                             placeholder="Password"
-                            value={password}
-                            onChange={(e) =>
+                            value={
+                                password
+                            }
+                            onChange={(
+                                e
+                            ) =>
                                 setPassword(
                                     e.target.value
                                 )
@@ -914,7 +1205,9 @@ function App() {
                                 !isRegister
                             );
 
-                            setAuthError("");
+                            setAuthError(
+                                ""
+                            );
                         }}
                     >
                         {isRegister
@@ -934,26 +1227,25 @@ function App() {
         return (
             <div className="container">
                 <h1>
-                    SyncSpace 🚀
+                    SyncSpace
                 </h1>
 
                 <h2>
-                    Welcome, {user.name}
+                    Welcome,{" "}
+                    {user.name}
                 </h2>
 
                 <p>
                     Status:
                     {connected
-                        ? " 🟢 Connected"
-                        : " 🔴 Disconnected"}
+                        ? " Connected"
+                        : " Disconnected"}
                 </p>
 
                 <div className="room-box">
                     <h2>
                         Join a Room
                     </h2>
-
-                    {/* JOIN EXISTING ROOM */}
 
                     <form
                         onSubmit={
@@ -963,14 +1255,21 @@ function App() {
                         <input
                             type="text"
                             placeholder="Enter Room ID"
-                            value={roomInput}
-                            onChange={(e) => {
+                            value={
+                                roomInput
+                            }
+                            onChange={(
+                                e
+                            ) => {
                                 setRoomInput(
                                     e.target.value
                                 );
 
-                                setRoomError("");
+                                setRoomError(
+                                    ""
+                                );
                             }}
+                            required
                         />
 
                         <button
@@ -989,18 +1288,22 @@ function App() {
                         OR
                     </p>
 
-                    {/* CREATE NEW ROOM */}
-
                     <input
                         type="text"
                         placeholder="Room Name (optional)"
-                        value={roomNameInput}
-                        onChange={(e) => {
+                        value={
+                            roomNameInput
+                        }
+                        onChange={(
+                            e
+                        ) => {
                             setRoomNameInput(
                                 e.target.value
                             );
 
-                            setRoomError("");
+                            setRoomError(
+                                ""
+                            );
                         }}
                     />
 
@@ -1031,7 +1334,9 @@ function App() {
 
                 <button
                     type="button"
-                    onClick={logout}
+                    onClick={
+                        logout
+                    }
                 >
                     Logout
                 </button>
@@ -1040,27 +1345,70 @@ function App() {
     }
 
     // =========================================
-    // CODE EDITOR SCREEN
+    // CURRENT USER / ACTIVE MEMBER
+    // =========================================
+
+    const currentUserId =
+        getCurrentUserId();
+
+    const activeMember =
+        roomMembers.find(
+            (member) =>
+                String(
+                    member._id ||
+                    member.id
+                ) ===
+                String(
+                    activeMemberId
+                )
+        );
+
+    const isOwnWorkspace =
+        String(
+            activeMemberId
+        ) ===
+        String(
+            currentUserId
+        );
+
+    // =========================================
+    // CURRENT EDITOR VALUE
+    // =========================================
+
+    const activeEditorCode =
+        memberCodes[
+            String(
+                activeMemberId
+            )
+        ] || "";
+
+    // =========================================
+    // EDITOR SCREEN
     // =========================================
 
     return (
         <div className="container">
             <h1>
-                SyncSpace 🚀
+                SyncSpace
             </h1>
 
             <h3>
-                Welcome, {user.name}
+                Welcome,{" "}
+                {user.name}
             </h3>
 
             <h3>
-                🏠 Room Name:{" "}
-                {roomName || "Untitled Room"}
+                Room Name:{" "}
+                {roomName ||
+                    "Untitled Room"}
             </h3>
+
+            {/* ROOM HEADER */}
 
             <div className="room-header">
                 <h3>
-                    🔑 Room ID: {roomId}
+                    Room ID:{" "}
+                    {roomId}
                 </h3>
 
                 <button
@@ -1086,27 +1434,130 @@ function App() {
                         }
                     }}
                 >
-                    📋 Copy Room ID
+                    Copy Room ID
                 </button>
             </div>
 
             <p>
                 Status:
                 {connected
-                    ? " 🟢 Connected"
-                    : " 🔴 Disconnected"}
+                    ? " Connected"
+                    : " Disconnected"}
             </p>
 
             <p>
-                👥 Users Online:{" "}
+                Users Online:{" "}
                 {usersOnline}
+            </p>
+
+            {/* MEMBER TABS */}
+
+            <div
+                className="member-tabs"
+                style={{
+                    display:
+                        "flex",
+
+                    gap: "8px",
+
+                    flexWrap:
+                        "wrap",
+
+                    margin:
+                        "16px 24px",
+                }}
+            >
+                {roomMembers.map(
+                    (member) => {
+                        const memberId =
+                            String(
+                                member._id ||
+                                member.id
+                            );
+
+                        const isActive =
+                            memberId ===
+                            String(
+                                activeMemberId
+                            );
+
+                        const isCurrentUser =
+                            memberId ===
+                            String(
+                                currentUserId
+                            );
+
+                        return (
+                            <button
+                                key={
+                                    memberId
+                                }
+                                type="button"
+                                onClick={() =>
+                                    selectMember(
+                                        memberId
+                                    )
+                                }
+                                style={{
+                                    background:
+                                        isActive
+                                            ? "linear-gradient(135deg, #f97316, #fb923c)"
+                                            : "#211712",
+
+                                    borderColor:
+                                        isActive
+                                            ? "#fb923c"
+                                            : "rgba(253,186,116,0.13)",
+
+                                    color:
+                                        "#fff7ed",
+                                }}
+                            >
+                                {member.name ||
+                                    "Member"}
+
+                                {isCurrentUser &&
+                                    " (You)"}
+                            </button>
+                        );
+                    }
+                )}
+            </div>
+
+            {/* ACTIVE MEMBER */}
+
+            <h3
+                style={{
+                    margin:
+                        "8px 24px",
+
+                    color:
+                        "#fdba74",
+                }}
+            >
+                {activeMember?.name ||
+                    "Member"}'s Workspace
+            </h3>
+
+            <p
+                style={{
+                    margin:
+                        "0 24px 12px",
+
+                    color:
+                        "#a8a29e",
+                }}
+            >
+                {isOwnWorkspace
+                    ? "You can edit this workspace."
+                    : "This workspace is read-only."}
             </p>
 
             {/* ROOM MEMBERS */}
 
             <div className="room-members">
                 <h3>
-                    👥 Room Members
+                    Room Members
                 </h3>
 
                 {roomMembers.length ===
@@ -1118,17 +1569,13 @@ function App() {
                     roomMembers.map(
                         (member) => {
                             const memberId =
-                                member._id ||
-                                member.id;
-
-                            const currentUserId =
-                                user.id ||
-                                user._id;
+                                String(
+                                    member._id ||
+                                    member.id
+                                );
 
                             const isCurrentUser =
-                                String(
-                                    memberId
-                                ) ===
+                                memberId ===
                                 String(
                                     currentUserId
                                 );
@@ -1148,6 +1595,15 @@ function App() {
                                         memberId
                                     }
                                     className="member"
+                                    onClick={() =>
+                                        selectMember(
+                                            memberId
+                                        )
+                                    }
+                                    style={{
+                                        cursor:
+                                            "pointer",
+                                    }}
                                 >
                                     <div className="avatar">
                                         {
@@ -1178,7 +1634,7 @@ function App() {
                 )}
             </div>
 
-            {/* ROOM BUTTONS */}
+            {/* ROOM ACTIONS */}
 
             <button
                 type="button"
@@ -1194,9 +1650,12 @@ function App() {
 
             <button
                 type="button"
-                onClick={logout}
+                onClick={
+                    logout
+                }
                 style={{
-                    marginLeft: "10px",
+                    marginLeft:
+                        "10px",
                 }}
             >
                 Logout
@@ -1207,17 +1666,25 @@ function App() {
             <Editor
                 height="500px"
                 defaultLanguage="javascript"
-                value={code}
+                value={
+                    activeEditorCode
+                }
                 onChange={
-                    handleEditorChange
+                    isOwnWorkspace
+                        ? handleEditorChange
+                        : undefined
                 }
                 theme="vs-dark"
                 options={{
                     minimap: {
-                        enabled: false,
+                        enabled:
+                            false,
                     },
                     fontSize: 16,
-                    automaticLayout: true,
+                    automaticLayout:
+                        true,
+                    readOnly:
+                        !isOwnWorkspace,
                 }}
             />
         </div>
