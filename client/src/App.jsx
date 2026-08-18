@@ -41,6 +41,11 @@ function App() {
 
     const [roomId, setRoomId] = useState("");
     const [roomInput, setRoomInput] = useState("");
+
+    // Input used only when creating a room
+    const [roomNameInput, setRoomNameInput] = useState("");
+
+    // Actual room name of the current room
     const [roomName, setRoomName] = useState("");
 
     const [joinedRoom, setJoinedRoom] = useState(false);
@@ -205,7 +210,6 @@ function App() {
                 existingCode
             );
 
-            // Ignore events from old room
             if (!roomIdRef.current) {
                 return;
             }
@@ -421,6 +425,7 @@ function App() {
 
         setRoomId("");
         setRoomInput("");
+        setRoomNameInput("");
         setRoomName("");
         setJoinedRoom(false);
         setUsersOnline(0);
@@ -446,21 +451,22 @@ function App() {
         }
 
         console.log(
-            "🚨 CREATE ROOM FUNCTION CALLED"
+            "CREATE ROOM FUNCTION CALLED"
         );
 
         setRoomError("");
         setRoomLoading(true);
 
         try {
+            const nameToCreate =
+                roomNameInput.trim() ||
+                "Untitled Room";
+
             const response =
                 await axios.post(
                     `${API_URL}/rooms/create`,
                     {
-                        roomName:
-                            roomName.trim() ||
-                            "Untitled Room",
-
+                        roomName: nameToCreate,
                         userId: user?.id,
                     },
                     getAuthConfig()
@@ -472,14 +478,18 @@ function App() {
             const newRoomId =
                 createdRoom.roomId;
 
+            const createdRoomName =
+                createdRoom.roomName ||
+                createdRoom.name ||
+                nameToCreate;
+
             console.log(
                 "MongoDB Room Created:",
                 createdRoom
             );
 
             // =================================
-            // IMPORTANT:
-            // Set ONLY CREATED room ID
+            // SET CURRENT ROOM
             // =================================
 
             roomIdRef.current =
@@ -489,6 +499,8 @@ function App() {
 
             setRoomId(newRoomId);
             setRoomInput(newRoomId);
+            setRoomName(createdRoomName);
+            setRoomNameInput("");
             setJoinedRoom(true);
             setUsersOnline(0);
             setRoomMembers([]);
@@ -502,6 +514,10 @@ function App() {
                 "join-room",
                 newRoomId
             );
+
+            // =================================
+            // LOAD MEMBERS
+            // =================================
 
             await loadRoomMembers(
                 newRoomId
@@ -537,14 +553,14 @@ function App() {
         }
 
         console.log(
-            "🔥 JOIN ROOM FUNCTION CALLED"
+            "JOIN ROOM FUNCTION CALLED"
         );
 
         const enteredRoom =
             roomInput.trim();
 
         console.log(
-            "🔥 ENTERED ROOM ID:",
+            "ENTERED ROOM ID:",
             enteredRoom
         );
 
@@ -561,7 +577,7 @@ function App() {
 
         try {
             // =================================
-            // CHECK THAT ROOM EXISTS
+            // CHECK ROOM EXISTS
             // =================================
 
             const response =
@@ -570,13 +586,21 @@ function App() {
                     getAuthConfig()
                 );
 
+            const foundRoom =
+                response.data.room;
+
             console.log(
                 "Room found:",
-                response.data.room
+                foundRoom
             );
 
+            const foundRoomName =
+                foundRoom.roomName ||
+                foundRoom.name ||
+                "Untitled Room";
+
             // =================================
-            // ADD USER TO ROOM
+            // ADD USER TO MONGODB ROOM
             // =================================
 
             if (user?.id) {
@@ -607,7 +631,7 @@ function App() {
             }
 
             // =================================
-            // SET EXACT ENTERED ROOM
+            // SET CURRENT ROOM
             // =================================
 
             roomIdRef.current =
@@ -616,13 +640,14 @@ function App() {
             joinedRoomRef.current = true;
 
             setRoomId(enteredRoom);
+            setRoomName(foundRoomName);
             setJoinedRoom(true);
             setUsersOnline(0);
             setRoomMembers([]);
             setCode("");
 
             // =================================
-            // JOIN EXACT SAME ROOM
+            // JOIN SOCKET ROOM
             // =================================
 
             console.log(
@@ -664,7 +689,7 @@ function App() {
                 setRoomError(
                     error.response?.data
                         ?.message ||
-                        "Unable to join room"
+                    "Unable to join room"
                 );
             }
         } finally {
@@ -711,6 +736,7 @@ function App() {
 
         setRoomId("");
         setRoomInput("");
+        setRoomNameInput("");
         setRoomName("");
         setJoinedRoom(false);
         setUsersOnline(0);
@@ -718,7 +744,7 @@ function App() {
         setCode("");
 
         // =================================
-        // DATABASE LEAVE
+        // REMOVE USER FROM DATABASE
         // =================================
 
         try {
@@ -759,10 +785,6 @@ function App() {
     const handleEditorChange = (value) => {
         const newCode = value || "";
 
-        // =================================
-        // UPDATE LOCAL EDITOR
-        // =================================
-
         setCode(newCode);
 
         const currentRoom =
@@ -771,10 +793,6 @@ function App() {
         if (!currentRoom) {
             return;
         }
-
-        // =================================
-        // SEND TO SERVER
-        // =================================
 
         console.log(
             "Sending code update:",
@@ -935,12 +953,12 @@ function App() {
                         Join a Room
                     </h2>
 
-                    {/* =================================
-                        JOIN EXISTING ROOM FORM
-                    ================================= */}
+                    {/* JOIN EXISTING ROOM */}
 
                     <form
-                        onSubmit={joinRoom}
+                        onSubmit={
+                            joinRoom
+                        }
                     >
                         <input
                             type="text"
@@ -971,24 +989,26 @@ function App() {
                         OR
                     </p>
 
-                    {/* =================================
-                        CREATE NEW ROOM
-                    ================================= */}
+                    {/* CREATE NEW ROOM */}
 
                     <input
                         type="text"
                         placeholder="Room Name (optional)"
-                        value={roomName}
-                        onChange={(e) =>
-                            setRoomName(
+                        value={roomNameInput}
+                        onChange={(e) => {
+                            setRoomNameInput(
                                 e.target.value
-                            )
-                        }
+                            );
+
+                            setRoomError("");
+                        }}
                     />
 
                     <button
                         type="button"
-                        onClick={createRoom}
+                        onClick={
+                            createRoom
+                        }
                         disabled={
                             roomLoading
                         }
@@ -1034,8 +1054,41 @@ function App() {
             </h3>
 
             <h3>
-                Room ID: {roomId}
+                🏠 Room Name:{" "}
+                {roomName || "Untitled Room"}
             </h3>
+
+            <div className="room-header">
+                <h3>
+                    🔑 Room ID: {roomId}
+                </h3>
+
+                <button
+                    type="button"
+                    onClick={async () => {
+                        try {
+                            await navigator.clipboard.writeText(
+                                roomId
+                            );
+
+                            alert(
+                                "Room ID copied!"
+                            );
+                        } catch (error) {
+                            console.error(
+                                "COPY ROOM ID ERROR:",
+                                error
+                            );
+
+                            alert(
+                                "Unable to copy Room ID"
+                            );
+                        }
+                    }}
+                >
+                    📋 Copy Room ID
+                </button>
+            </div>
 
             <p>
                 Status:
@@ -1049,9 +1102,7 @@ function App() {
                 {usersOnline}
             </p>
 
-            {/* =================================
-                ROOM MEMBERS
-            ================================= */}
+            {/* ROOM MEMBERS */}
 
             <div className="room-members">
                 <h3>
@@ -1127,14 +1178,16 @@ function App() {
                 )}
             </div>
 
-            {/* =================================
-                ROOM BUTTONS
-            ================================= */}
+            {/* ROOM BUTTONS */}
 
             <button
                 type="button"
-                onClick={leaveRoom}
-                disabled={roomLoading}
+                onClick={
+                    leaveRoom
+                }
+                disabled={
+                    roomLoading
+                }
             >
                 Leave Room
             </button>
@@ -1149,9 +1202,7 @@ function App() {
                 Logout
             </button>
 
-            {/* =================================
-                MONACO EDITOR
-            ================================= */}
+            {/* MONACO EDITOR */}
 
             <Editor
                 height="500px"
