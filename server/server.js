@@ -23,8 +23,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*"
-    }
+        origin: "*",
+    },
 });
 
 // =====================================
@@ -43,13 +43,17 @@ function getRoomSize(roomId) {
 
 // =====================================
 // NORMALIZE JOIN PAYLOAD
+// Supports:
+// "1787000000000"
+// and
+// { roomId, userId }
 // =====================================
 
 function normalizeJoinPayload(payload) {
     if (typeof payload === "string") {
         return {
             roomId: payload,
-            userId: null
+            userId: null,
         };
     }
 
@@ -59,13 +63,13 @@ function normalizeJoinPayload(payload) {
     ) {
         return {
             roomId: payload.roomId || "",
-            userId: payload.userId || null
+            userId: payload.userId || null,
         };
     }
 
     return {
         roomId: "",
-        userId: null
+        userId: null,
     };
 }
 
@@ -81,7 +85,7 @@ function normalizeCodePayload(payload) {
         return {
             roomId: "",
             userId: null,
-            code: ""
+            code: "",
         };
     }
 
@@ -91,12 +95,12 @@ function normalizeCodePayload(payload) {
         code:
             typeof payload.code === "string"
                 ? payload.code
-                : ""
+                : "",
     };
 }
 
 // =====================================
-// CHECK WHETHER USER BELONGS TO ROOM
+// CHECK USER MEMBERSHIP
 // =====================================
 
 function roomHasUser(room, userId) {
@@ -131,20 +135,22 @@ io.on("connection", (socket) => {
             try {
                 const {
                     roomId,
-                    userId
-                } = normalizeJoinPayload(
-                    payload
-                );
+                    userId,
+                } =
+                    normalizeJoinPayload(
+                        payload
+                    );
 
                 if (!roomId) {
                     console.log(
-                        "Room ID is required"
+                        "JOIN REJECTED: Room ID is required"
                     );
+
                     return;
                 }
 
                 // ---------------------------------
-                // Store user ID on socket
+                // STORE USER ID ON SOCKET
                 // ---------------------------------
 
                 if (userId) {
@@ -153,7 +159,7 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // Leave old room if necessary
+                // LEAVE PREVIOUS ROOM
                 // ---------------------------------
 
                 if (
@@ -194,16 +200,16 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // Find room
+                // FIND ROOM
                 // ---------------------------------
 
                 let room =
                     await Room.findOne({
-                        roomId
+                        roomId,
                     });
 
                 // ---------------------------------
-                // Create room if missing
+                // CREATE ROOM IF MISSING
                 // ---------------------------------
 
                 if (!room) {
@@ -216,11 +222,9 @@ io.on("connection", (socket) => {
 
                             users: [],
 
-                            // Kept only for
-                            // backward DB compatibility.
                             code: "",
 
-                            memberCodes: {}
+                            memberCodes: {},
                         });
 
                     console.log(
@@ -229,7 +233,7 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // Make sure memberCodes exists
+                // MAKE SURE MEMBER CODES EXISTS
                 // ---------------------------------
 
                 if (!room.memberCodes) {
@@ -240,10 +244,43 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // Join socket room
+                // VERIFY ROOM MEMBERSHIP
                 // ---------------------------------
 
-                socket.join(roomId);
+                if (userId) {
+                    const memberId =
+                        String(userId);
+
+                    const isMember =
+                        roomHasUser(
+                            room,
+                            memberId
+                        );
+
+                    if (!isMember) {
+                        console.log(
+                            `JOIN REJECTED: User ${memberId} is not a member of room ${roomId}`
+                        );
+
+                        socket.emit(
+                            "room-error",
+                            {
+                                message:
+                                    "You are not a member of this room.",
+                            }
+                        );
+
+                        return;
+                    }
+                }
+
+                // ---------------------------------
+                // JOIN SOCKET.IO ROOM
+                // ---------------------------------
+
+                socket.join(
+                    roomId
+                );
 
                 socket.roomId =
                     roomId;
@@ -254,10 +291,6 @@ io.on("connection", (socket) => {
 
                 // ---------------------------------
                 // SEND ONLY THIS USER'S CODE
-                //
-                // IMPORTANT:
-                // Never fall back to room.code.
-                // Every member gets their own code.
                 // ---------------------------------
 
                 if (userId) {
@@ -276,7 +309,7 @@ io.on("connection", (socket) => {
                                 memberId,
 
                             code:
-                                existingCode
+                                existingCode,
                         }
                     );
 
@@ -286,7 +319,7 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // Current online users
+                // ONLINE USERS
                 // ---------------------------------
 
                 const roomSize =
@@ -337,8 +370,7 @@ io.on("connection", (socket) => {
                     socket.roomId ===
                     roomId
                 ) {
-                    socket.roomId =
-                        null;
+                    socket.roomId = null;
                 }
 
                 await new Promise(
@@ -375,6 +407,7 @@ io.on("connection", (socket) => {
     // =====================================
     // CODE CHANGE
     // INDIVIDUAL MEMBER WORKSPACE
+    // WITH BASIC SECURITY
     // =====================================
 
     socket.on(
@@ -384,66 +417,154 @@ io.on("connection", (socket) => {
                 const {
                     roomId,
                     userId,
-                    code
-                } = normalizeCodePayload(
-                    payload
-                );
+                    code,
+                } =
+                    normalizeCodePayload(
+                        payload
+                    );
+
+                // ---------------------------------
+                // ROOM ID REQUIRED
+                // ---------------------------------
 
                 if (!roomId) {
-                    return;
-                }
-
-                // ---------------------------------
-                // Resolve actual user
-                // ---------------------------------
-
-                const resolvedUserId =
-                    userId ||
-                    socket.userId ||
-                    null;
-
-                if (!resolvedUserId) {
                     console.log(
-                        "CODE CHANGE ERROR: User ID is required"
+                        "CODE CHANGE REJECTED: Room ID is required"
                     );
+
                     return;
                 }
 
                 // ---------------------------------
-                // Find room
+                // ACTUAL SOCKET USER
+                // ---------------------------------
+
+                const socketUserId =
+                    socket.userId
+                        ? String(
+                              socket.userId
+                          )
+                        : "";
+
+                // ---------------------------------
+                // USER FROM FRONTEND
+                // ---------------------------------
+
+                const requestedUserId =
+                    userId
+                        ? String(userId)
+                        : "";
+
+                // ---------------------------------
+                // USER ID VALIDATION
+                // ---------------------------------
+
+                if (!socketUserId) {
+                    console.log(
+                        `CODE CHANGE REJECTED: Socket user not identified for ${socket.id}`
+                    );
+
+                    return;
+                }
+
+                if (!requestedUserId) {
+                    console.log(
+                        `CODE CHANGE REJECTED: User ID missing for room ${roomId}`
+                    );
+
+                    return;
+                }
+
+                // ---------------------------------
+                // ONLY OWN WORKSPACE CAN BE EDITED
+                // ---------------------------------
+
+                if (
+                    requestedUserId !==
+                    socketUserId
+                ) {
+                    console.log(
+                        `CODE CHANGE REJECTED: User ${socketUserId} attempted to modify workspace ${requestedUserId}`
+                    );
+
+                    socket.emit(
+                        "code-change-rejected",
+                        {
+                            message:
+                                "You can edit only your own workspace.",
+                        }
+                    );
+
+                    return;
+                }
+
+                // ---------------------------------
+                // SOCKET MUST BE IN THIS ROOM
+                // ---------------------------------
+
+                if (
+                    socket.roomId !==
+                    roomId
+                ) {
+                    console.log(
+                        `CODE CHANGE REJECTED: Socket ${socket.id} is not in room ${roomId}`
+                    );
+
+                    socket.emit(
+                        "code-change-rejected",
+                        {
+                            message:
+                                "You are not connected to this room.",
+                        }
+                    );
+
+                    return;
+                }
+
+                // ---------------------------------
+                // FIND ROOM
                 // ---------------------------------
 
                 const room =
                     await Room.findOne({
-                        roomId
+                        roomId,
                     });
 
                 if (!room) {
                     console.log(
-                        `Room not found in MongoDB: ${roomId}`
+                        `CODE CHANGE REJECTED: Room not found ${roomId}`
                     );
+
                     return;
                 }
 
                 // ---------------------------------
-                // Security / membership check
+                // VERIFY ROOM MEMBERSHIP
                 // ---------------------------------
 
                 if (
                     !roomHasUser(
                         room,
-                        resolvedUserId
+                        socketUserId
                     )
                 ) {
                     console.log(
-                        `User ${resolvedUserId} is not a member of room ${roomId}`
+                        `CODE CHANGE REJECTED: User ${socketUserId} is not a member of room ${roomId}`
+                    );
+
+                    socket.emit(
+                        "code-change-rejected",
+                        {
+                            message:
+                                "You are not a member of this room.",
+                        }
                     );
 
                     return;
                 }
 
                 // ---------------------------------
-                // Make sure memberCodes exists
+                // MAKE SURE MEMBER CODES EXISTS
                 // ---------------------------------
 
                 if (!room.memberCodes) {
@@ -452,34 +573,42 @@ io.on("connection", (socket) => {
                 }
 
                 // ---------------------------------
-                // SAVE ONLY THIS USER'S CODE
+                // NORMALIZE CODE
+                // ---------------------------------
+
+                const safeCode =
+                    typeof code === "string"
+                        ? code
+                        : "";
+
+                // ---------------------------------
+                // SAVE ONLY CURRENT USER CODE
                 // ---------------------------------
 
                 room.memberCodes.set(
-                    String(
-                        resolvedUserId
-                    ),
-                    code
+                    socketUserId,
+                    safeCode
                 );
 
-                /*
-                    IMPORTANT:
-
-                    Do NOT update room.code here.
-
-                    room.code is the old shared-code
-                    field. The new system uses only
-                    memberCodes.
-                */
+                // ---------------------------------
+                // DO NOT UPDATE room.code
+                // ---------------------------------
+                //
+                // memberCodes is now the source
+                // of truth for individual workspaces.
+                //
+                // room.code remains only for old
+                // database compatibility.
+                // ---------------------------------
 
                 await room.save();
 
                 console.log(
-                    `Code saved for user ${resolvedUserId} in room ${roomId}`
+                    `Code saved for user ${socketUserId} in room ${roomId}`
                 );
 
                 // ---------------------------------
-                // SEND ONLY MEMBER-SPECIFIC UPDATE
+                // BROADCAST ONLY THAT USER'S UPDATE
                 // ---------------------------------
 
                 socket
@@ -488,16 +617,15 @@ io.on("connection", (socket) => {
                         "member-code-update",
                         {
                             userId:
-                                String(
-                                    resolvedUserId
-                                ),
+                                socketUserId,
 
-                            code
+                            code:
+                                safeCode,
                         }
                     );
 
                 console.log(
-                    `Member code update broadcast for user ${resolvedUserId}`
+                    `Member code update broadcast for user ${socketUserId}`
                 );
             } catch (error) {
                 console.error(
@@ -516,7 +644,7 @@ io.on("connection", (socket) => {
         "get-member-code",
         async ({
             roomId,
-            userId
+            userId,
         } = {}) => {
             try {
                 if (
@@ -526,17 +654,59 @@ io.on("connection", (socket) => {
                     return;
                 }
 
+                // ---------------------------------
+                // SOCKET ROOM CHECK
+                // ---------------------------------
+
+                if (
+                    socket.roomId !==
+                    roomId
+                ) {
+                    return;
+                }
+
+                // ---------------------------------
+                // SOCKET USER CHECK
+                // ---------------------------------
+
+                if (
+                    socket.userId &&
+                    String(
+                        socket.userId
+                    ) !==
+                        String(
+                            userId
+                        )
+                ) {
+                    return;
+                }
+
                 const room =
                     await Room.findOne({
-                        roomId
+                        roomId,
                     });
 
                 if (!room) {
                     return;
                 }
 
+                // ---------------------------------
+                // ROOM MEMBERSHIP CHECK
+                // ---------------------------------
+
+                if (
+                    !roomHasUser(
+                        room,
+                        userId
+                    )
+                ) {
+                    return;
+                }
+
                 const memberId =
-                    String(userId);
+                    String(
+                        userId
+                    );
 
                 const personalCode =
                     room.memberCodes?.get(
@@ -550,7 +720,7 @@ io.on("connection", (socket) => {
                             memberId,
 
                         code:
-                            personalCode
+                            personalCode,
                     }
                 );
             } catch (error) {
@@ -569,21 +739,62 @@ io.on("connection", (socket) => {
     socket.on(
         "get-room-member-codes",
         async ({
-            roomId
+            roomId,
         } = {}) => {
             try {
                 if (!roomId) {
                     return;
                 }
 
+                // ---------------------------------
+                // SOCKET MUST BE IN ROOM
+                // ---------------------------------
+
+                if (
+                    socket.roomId !==
+                    roomId
+                ) {
+                    console.log(
+                        `GET MEMBER CODES REJECTED: Socket ${socket.id} is not in room ${roomId}`
+                    );
+
+                    return;
+                }
+
+                // ---------------------------------
+                // FIND ROOM
+                // ---------------------------------
+
                 const room =
                     await Room.findOne({
-                        roomId
+                        roomId,
                     });
 
                 if (!room) {
                     return;
                 }
+
+                // ---------------------------------
+                // USER MEMBERSHIP CHECK
+                // ---------------------------------
+
+                if (
+                    socket.userId &&
+                    !roomHasUser(
+                        room,
+                        socket.userId
+                    )
+                ) {
+                    console.log(
+                        `GET MEMBER CODES REJECTED: User ${socket.userId} is not a member`
+                    );
+
+                    return;
+                }
+
+                // ---------------------------------
+                // BUILD MEMBER CODE OBJECT
+                // ---------------------------------
 
                 const memberCodes = {};
 
@@ -592,15 +803,16 @@ io.on("connection", (socket) => {
                 ) {
                     for (
                         const [
-                            userId,
-                            code
+                            memberUserId,
+                            memberCode,
                         ] of room.memberCodes.entries()
                     ) {
                         memberCodes[
                             String(
-                                userId
+                                memberUserId
                             )
-                        ] = code || "";
+                        ] =
+                            memberCode || "";
                     }
                 }
 
@@ -629,10 +841,19 @@ io.on("connection", (socket) => {
         "yjs-update",
         ({
             roomId,
-            update
+            update,
         } = {}) => {
             try {
                 if (!roomId) {
+                    return;
+                }
+
+                // Only allow updates from
+                // a socket currently in the room.
+                if (
+                    socket.roomId !==
+                    roomId
+                ) {
                     return;
                 }
 

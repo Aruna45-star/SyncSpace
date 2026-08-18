@@ -1,10 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Editor from "@monaco-editor/react";
+import { Toaster, toast } from "sonner";
 import socket from "./socket";
 import "./App.css";
 
 const API_URL = "http://localhost:5000/api";
+
+const LANGUAGES = [
+    {
+        id: "javascript",
+        label: "JavaScript",
+    },
+    {
+        id: "python",
+        label: "Python",
+    },
+    {
+        id: "java",
+        label: "Java",
+    },
+    {
+        id: "cpp",
+        label: "C++",
+    },
+    {
+        id: "html",
+        label: "HTML",
+    },
+    {
+        id: "css",
+        label: "CSS",
+    },
+    {
+        id: "json",
+        label: "JSON",
+    },
+];
 
 function App() {
     // =========================================
@@ -33,8 +65,7 @@ function App() {
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
-    const [password, setPassword] =
-        useState("");
+    const [password, setPassword] = useState("");
 
     const [authLoading, setAuthLoading] =
         useState(false);
@@ -73,6 +104,13 @@ function App() {
 
     const [activeMemberId, setActiveMemberId] =
         useState("");
+
+    // =========================================
+    // INDIVIDUAL MEMBER LANGUAGES
+    // =========================================
+
+    const [memberLanguages, setMemberLanguages] =
+        useState({});
 
     // =========================================
     // ROOM PRESENCE
@@ -194,11 +232,6 @@ function App() {
                     ).values()
                 );
 
-            console.log(
-                "ROOM MEMBERS:",
-                uniqueMembers
-            );
-
             setRoomMembers(
                 uniqueMembers
             );
@@ -228,6 +261,61 @@ function App() {
 
         activeMemberIdRef.current =
             id;
+
+        setMemberLanguages(
+            (previous) => {
+                if (previous[id]) {
+                    return previous;
+                }
+
+                return {
+                    ...previous,
+                    [id]: "javascript",
+                };
+            }
+        );
+    };
+
+    // =========================================
+    // CHANGE PROGRAMMING LANGUAGE
+    // =========================================
+
+    const handleLanguageChange = (
+        event
+    ) => {
+        const language =
+            event.target.value;
+
+        const currentMemberId =
+            String(
+                activeMemberIdRef.current ||
+                ""
+            );
+
+        if (!currentMemberId) {
+            return;
+        }
+
+        setMemberLanguages(
+            (previous) => ({
+                ...previous,
+                [currentMemberId]:
+                    language,
+            })
+        );
+
+        const selectedLanguage =
+            LANGUAGES.find(
+                (item) =>
+                    item.id ===
+                    language
+            );
+
+        if (selectedLanguage) {
+            toast.success(
+                `Language changed to ${selectedLanguage.label}`
+            );
+        }
     };
 
     // =========================================
@@ -253,16 +341,12 @@ function App() {
                 currentRoom &&
                 currentUserId
             ) {
-                console.log(
-                    "Rejoining room after reconnect:",
-                    currentRoom
-                );
-
                 socket.emit(
                     "join-room",
                     {
                         roomId:
                             currentRoom,
+
                         userId:
                             currentUserId,
                     }
@@ -289,11 +373,6 @@ function App() {
         const handleRoomUsers = async (
             count
         ) => {
-            console.log(
-                "Users Online:",
-                count
-            );
-
             setUsersOnline(count);
 
             const currentRoom =
@@ -323,15 +402,6 @@ function App() {
 
             const memberCode =
                 payload.code || "";
-
-            console.log(
-                "Received member code:",
-                {
-                    memberId,
-                    length:
-                        memberCode.length,
-                }
-            );
 
             setMemberCodes(
                 (previous) => ({
@@ -370,11 +440,6 @@ function App() {
                     )
                 );
 
-            console.log(
-                "ROOM MEMBER CODES:",
-                normalizedCodes
-            );
-
             setMemberCodes(
                 normalizedCodes
             );
@@ -408,6 +473,17 @@ function App() {
 
                 activeMemberIdRef.current =
                     currentUserId;
+
+                setMemberLanguages(
+                    (previous) => ({
+                        ...previous,
+                        [currentUserId]:
+                            previous[
+                                currentUserId
+                            ] ||
+                            "javascript",
+                    })
+                );
             }
         };
 
@@ -428,15 +504,6 @@ function App() {
 
             const updatedCode =
                 payload.code || "";
-
-            console.log(
-                "Member code update:",
-                {
-                    memberId,
-                    length:
-                        updatedCode.length,
-                }
-            );
 
             setMemberCodes(
                 (previous) => ({
@@ -538,7 +605,7 @@ function App() {
                         }
                     );
 
-                alert(
+                toast.success(
                     response.data.message ||
                     "Registration successful"
                 );
@@ -600,6 +667,10 @@ function App() {
                 );
 
                 setPassword("");
+
+                toast.success(
+                    "Login successful"
+                );
             }
         } catch (error) {
             console.error(
@@ -607,10 +678,17 @@ function App() {
                 error
             );
 
-            setAuthError(
+            const message =
                 error.response?.data
                     ?.message ||
-                "Something went wrong"
+                "Something went wrong";
+
+            setAuthError(
+                message
+            );
+
+            toast.error(
+                message
             );
         } finally {
             setAuthLoading(
@@ -654,6 +732,10 @@ function App() {
                     "LOGOUT ROOM LEAVE ERROR:",
                     error
                 );
+
+                toast.error(
+                    "Unable to leave room cleanly"
+                );
             }
         }
 
@@ -670,6 +752,7 @@ function App() {
         setUsersOnline(0);
         setRoomMembers([]);
         setMemberCodes({});
+        setMemberLanguages({});
         setActiveMemberId("");
 
         localStorage.removeItem(
@@ -684,6 +767,10 @@ function App() {
 
         setToken(null);
         setUser(null);
+
+        toast.success(
+            "Logged out successfully"
+        );
     };
 
     // =========================================
@@ -705,8 +792,15 @@ function App() {
                 getCurrentUserId();
 
             if (!currentUserId) {
+                const message =
+                    "User information is missing. Please login again.";
+
                 setRoomError(
-                    "User information is missing. Please login again."
+                    message
+                );
+
+                toast.error(
+                    message
                 );
 
                 return;
@@ -722,6 +816,7 @@ function App() {
                     {
                         roomName:
                             nameToCreate,
+
                         userId:
                             currentUserId,
                     },
@@ -763,6 +858,7 @@ function App() {
             setUsersOnline(0);
             setRoomMembers([]);
             setMemberCodes({});
+            setMemberLanguages({});
 
             setActiveMemberId(
                 currentUserId
@@ -771,11 +867,17 @@ function App() {
             activeMemberIdRef.current =
                 currentUserId;
 
+            setMemberLanguages({
+                [currentUserId]:
+                    "javascript",
+            });
+
             socket.emit(
                 "join-room",
                 {
                     roomId:
                         newRoomId,
+
                     userId:
                         currentUserId,
                 }
@@ -793,9 +895,8 @@ function App() {
                 newRoomId
             );
 
-            console.log(
-                "Created and joined room:",
-                newRoomId
+            toast.success(
+                "Room created successfully"
             );
         } catch (error) {
             console.error(
@@ -803,10 +904,17 @@ function App() {
                 error
             );
 
-            setRoomError(
+            const message =
                 error.response?.data
                     ?.message ||
-                "Unable to create room"
+                "Unable to create room";
+
+            setRoomError(
+                message
+            );
+
+            toast.error(
+                message
             );
         } finally {
             setRoomLoading(
@@ -833,16 +941,30 @@ function App() {
             getCurrentUserId();
 
         if (!enteredRoom) {
+            const message =
+                "Please enter a Room ID";
+
             setRoomError(
-                "Please enter a Room ID"
+                message
+            );
+
+            toast.error(
+                message
             );
 
             return;
         }
 
         if (!currentUserId) {
+            const message =
+                "User information is missing. Please login again.";
+
             setRoomError(
-                "User information is missing. Please login again."
+                message
+            );
+
+            toast.error(
+                message
             );
 
             return;
@@ -906,6 +1028,7 @@ function App() {
             setUsersOnline(0);
             setRoomMembers([]);
             setMemberCodes({});
+            setMemberLanguages({});
 
             setActiveMemberId(
                 currentUserId
@@ -914,11 +1037,17 @@ function App() {
             activeMemberIdRef.current =
                 currentUserId;
 
+            setMemberLanguages({
+                [currentUserId]:
+                    "javascript",
+            });
+
             socket.emit(
                 "join-room",
                 {
                     roomId:
                         enteredRoom,
+
                     userId:
                         currentUserId,
                 }
@@ -936,9 +1065,8 @@ function App() {
                 enteredRoom
             );
 
-            console.log(
-                "Joined room:",
-                enteredRoom
+            toast.success(
+                "Joined room successfully"
             );
         } catch (error) {
             console.error(
@@ -946,20 +1074,29 @@ function App() {
                 error
             );
 
+            let message =
+                "Unable to join room";
+
             if (
                 error.response?.status ===
                 404
             ) {
-                setRoomError(
-                    "Room not found"
-                );
+                message =
+                    "Room not found";
             } else {
-                setRoomError(
+                message =
                     error.response?.data
                         ?.message ||
-                    "Unable to join room"
-                );
+                    message;
             }
+
+            setRoomError(
+                message
+            );
+
+            toast.error(
+                message
+            );
         } finally {
             setRoomLoading(
                 false
@@ -1006,10 +1143,18 @@ function App() {
                     }
                 );
             }
+
+            toast.success(
+                "Left room successfully"
+            );
         } catch (error) {
             console.error(
                 "LEAVE ROOM DATABASE ERROR:",
                 error
+            );
+
+            toast.error(
+                "Unable to leave room cleanly"
             );
         }
 
@@ -1025,6 +1170,7 @@ function App() {
         setUsersOnline(0);
         setRoomMembers([]);
         setMemberCodes({});
+        setMemberLanguages({});
         setActiveMemberId("");
     };
 
@@ -1099,123 +1245,148 @@ function App() {
 
     if (!token || !user) {
         return (
-            <div className="container">
-                <h1>
-                    SyncSpace
-                </h1>
+            <>
+                <Toaster
+                    position="top-right"
+                    theme="dark"
+                    richColors
+                    closeButton
+                    toastOptions={{
+                        style: {
+                            background:
+                                "#17120f",
+                            border:
+                                "1px solid rgba(253, 186, 116, 0.2)",
+                            color:
+                                "#fff7ed",
+                        },
+                    }}
+                />
 
-                <p>
-                    Real-Time
-                    Collaborative Code
-                    Editor
-                </p>
+                <div className="container">
+                    <h1>
+                        SyncSpace
+                    </h1>
 
-                <div className="room-box">
-                    <h2>
-                        {isRegister
-                            ? "Create Account"
-                            : "Login"}
-                    </h2>
+                    <p>
+                        Real-Time
+                        Collaborative Code
+                        Editor
+                    </p>
 
-                    <form
-                        onSubmit={
-                            handleAuth
-                        }
-                    >
-                        {isRegister && (
+                    <div className="room-box">
+                        <h2>
+                            {isRegister
+                                ? "Create Account"
+                                : "Login"}
+                        </h2>
+
+                        <form
+                            onSubmit={
+                                handleAuth
+                            }
+                        >
+                            {isRegister && (
+                                <input
+                                    type="text"
+                                    placeholder="Name"
+                                    value={name}
+                                    onChange={(
+                                        e
+                                    ) =>
+                                        setName(
+                                            e.target
+                                                .value
+                                        )
+                                    }
+                                    required
+                                />
+                            )}
+
                             <input
-                                type="text"
-                                placeholder="Name"
-                                value={name}
+                                type="email"
+                                placeholder="Email"
+                                value={email}
                                 onChange={(
                                     e
                                 ) =>
-                                    setName(
-                                        e.target.value
+                                    setEmail(
+                                        e.target
+                                            .value
                                     )
                                 }
                                 required
                             />
-                        )}
 
-                        <input
-                            type="email"
-                            placeholder="Email"
-                            value={email}
-                            onChange={(
-                                e
-                            ) =>
-                                setEmail(
-                                    e.target.value
-                                )
-                            }
-                            required
-                        />
+                            <input
+                                type="password"
+                                placeholder="Password"
+                                value={
+                                    password
+                                }
+                                onChange={(
+                                    e
+                                ) =>
+                                    setPassword(
+                                        e.target
+                                            .value
+                                    )
+                                }
+                                required
+                            />
 
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            value={
-                                password
-                            }
-                            onChange={(
-                                e
-                            ) =>
-                                setPassword(
-                                    e.target.value
-                                )
-                            }
-                            required
-                        />
+                            {authError && (
+                                <p
+                                    style={{
+                                        color:
+                                            "red",
+                                    }}
+                                >
+                                    {
+                                        authError
+                                    }
+                                </p>
+                            )}
 
-                        {authError && (
-                            <p
-                                style={{
-                                    color: "red",
-                                }}
+                            <button
+                                type="submit"
+                                disabled={
+                                    authLoading
+                                }
                             >
-                                {authError}
-                            </p>
-                        )}
+                                {authLoading
+                                    ? "Please wait..."
+                                    : isRegister
+                                    ? "Create Account"
+                                    : "Login"}
+                            </button>
+                        </form>
+
+                        <p>
+                            {isRegister
+                                ? "Already have an account?"
+                                : "Don't have an account?"}
+                        </p>
 
                         <button
-                            type="submit"
-                            disabled={
-                                authLoading
-                            }
+                            type="button"
+                            onClick={() => {
+                                setIsRegister(
+                                    !isRegister
+                                );
+
+                                setAuthError(
+                                    ""
+                                );
+                            }}
                         >
-                            {authLoading
-                                ? "Please wait..."
-                                : isRegister
-                                ? "Create Account"
-                                : "Login"}
+                            {isRegister
+                                ? "Login"
+                                : "Create Account"}
                         </button>
-                    </form>
-
-                    <p>
-                        {isRegister
-                            ? "Already have an account?"
-                            : "Don't have an account?"}
-                    </p>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIsRegister(
-                                !isRegister
-                            );
-
-                            setAuthError(
-                                ""
-                            );
-                        }}
-                    >
-                        {isRegister
-                            ? "Login"
-                            : "Create Account"}
-                    </button>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
@@ -1225,122 +1396,146 @@ function App() {
 
     if (!joinedRoom) {
         return (
-            <div className="container">
-                <h1>
-                    SyncSpace
-                </h1>
+            <>
+                <Toaster
+                    position="top-right"
+                    theme="dark"
+                    richColors
+                    closeButton
+                    toastOptions={{
+                        style: {
+                            background:
+                                "#17120f",
+                            border:
+                                "1px solid rgba(253, 186, 116, 0.2)",
+                            color:
+                                "#fff7ed",
+                        },
+                    }}
+                />
 
-                <h2>
-                    Welcome,{" "}
-                    {user.name}
-                </h2>
+                <div className="container">
+                    <h1>
+                        SyncSpace
+                    </h1>
 
-                <p>
-                    Status:
-                    {connected
-                        ? " Connected"
-                        : " Disconnected"}
-                </p>
-
-                <div className="room-box">
                     <h2>
-                        Join a Room
+                        Welcome,{" "}
+                        {user.name}
                     </h2>
 
-                    <form
-                        onSubmit={
-                            joinRoom
-                        }
-                    >
+                    <p>
+                        Status:
+                        {connected
+                            ? " Connected"
+                            : " Disconnected"}
+                    </p>
+
+                    <div className="room-box">
+                        <h2>
+                            Join a Room
+                        </h2>
+
+                        <form
+                            onSubmit={
+                                joinRoom
+                            }
+                        >
+                            <input
+                                type="text"
+                                placeholder="Enter Room ID"
+                                value={
+                                    roomInput
+                                }
+                                onChange={(
+                                    e
+                                ) => {
+                                    setRoomInput(
+                                        e.target
+                                            .value
+                                    );
+
+                                    setRoomError(
+                                        ""
+                                    );
+                                }}
+                                required
+                            />
+
+                            <button
+                                type="submit"
+                                disabled={
+                                    roomLoading
+                                }
+                            >
+                                {roomLoading
+                                    ? "Please wait..."
+                                    : "Join Room"}
+                            </button>
+                        </form>
+
+                        <p>
+                            OR
+                        </p>
+
                         <input
                             type="text"
-                            placeholder="Enter Room ID"
+                            placeholder="Room Name (optional)"
                             value={
-                                roomInput
+                                roomNameInput
                             }
                             onChange={(
                                 e
                             ) => {
-                                setRoomInput(
-                                    e.target.value
+                                setRoomNameInput(
+                                    e.target
+                                        .value
                                 );
 
                                 setRoomError(
                                     ""
                                 );
                             }}
-                            required
                         />
 
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={
+                                createRoom
+                            }
                             disabled={
                                 roomLoading
                             }
                         >
                             {roomLoading
-                                ? "Please wait..."
-                                : "Join Room"}
+                                ? "Creating..."
+                                : "Create New Room"}
                         </button>
-                    </form>
 
-                    <p>
-                        OR
-                    </p>
-
-                    <input
-                        type="text"
-                        placeholder="Room Name (optional)"
-                        value={
-                            roomNameInput
-                        }
-                        onChange={(
-                            e
-                        ) => {
-                            setRoomNameInput(
-                                e.target.value
-                            );
-
-                            setRoomError(
-                                ""
-                            );
-                        }}
-                    />
+                        {roomError && (
+                            <p
+                                style={{
+                                    color:
+                                        "red",
+                                }}
+                            >
+                                {
+                                    roomError
+                                }
+                            </p>
+                        )}
+                    </div>
 
                     <button
                         type="button"
                         onClick={
-                            createRoom
-                        }
-                        disabled={
-                            roomLoading
+                            logout
                         }
                     >
-                        {roomLoading
-                            ? "Creating..."
-                            : "Create New Room"}
+                        Logout
                     </button>
-
-                    {roomError && (
-                        <p
-                            style={{
-                                color: "red",
-                            }}
-                        >
-                            {roomError}
-                        </p>
-                    )}
                 </div>
-
-                <button
-                    type="button"
-                    onClick={
-                        logout
-                    }
-                >
-                    Logout
-                </button>
-            </div>
+            </>
         );
     }
 
@@ -1372,7 +1567,7 @@ function App() {
         );
 
     // =========================================
-    // CURRENT EDITOR VALUE
+    // ACTIVE EDITOR CODE
     // =========================================
 
     const activeEditorCode =
@@ -1383,195 +1578,125 @@ function App() {
         ] || "";
 
     // =========================================
+    // ACTIVE LANGUAGE
+    // =========================================
+
+    const activeLanguage =
+        memberLanguages[
+            String(
+                activeMemberId
+            )
+        ] ||
+        "javascript";
+
+    // =========================================
     // EDITOR SCREEN
     // =========================================
 
     return (
-        <div className="container">
-            <h1>
-                SyncSpace
-            </h1>
+        <>
+            <Toaster
+                position="top-right"
+                theme="dark"
+                richColors
+                closeButton
+                toastOptions={{
+                    style: {
+                        background:
+                            "#17120f",
+                        border:
+                            "1px solid rgba(253, 186, 116, 0.2)",
+                        color:
+                            "#fff7ed",
+                    },
+                }}
+            />
 
-            <h3>
-                Welcome,{" "}
-                {user.name}
-            </h3>
+            <div className="container">
+                <h1>
+                    SyncSpace
+                </h1>
 
-            <h3>
-                Room Name:{" "}
-                {roomName ||
-                    "Untitled Room"}
-            </h3>
-
-            {/* ROOM HEADER */}
-
-            <div className="room-header">
                 <h3>
-                    Room ID:{" "}
-                    {roomId}
+                    Welcome,{" "}
+                    {user.name}
                 </h3>
 
-                <button
-                    type="button"
-                    onClick={async () => {
-                        try {
-                            await navigator.clipboard.writeText(
-                                roomId
-                            );
+                <h3>
+                    Room Name:{" "}
+                    {roomName ||
+                        "Untitled Room"}
+                </h3>
 
-                            alert(
-                                "Room ID copied!"
-                            );
-                        } catch (error) {
-                            console.error(
-                                "COPY ROOM ID ERROR:",
-                                error
-                            );
+                <div className="room-header">
+                    <h3>
+                        Room ID:{" "}
+                        {roomId}
+                    </h3>
 
-                            alert(
-                                "Unable to copy Room ID"
-                            );
-                        }
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                await navigator.clipboard.writeText(
+                                    roomId
+                                );
+
+                                toast.success(
+                                    "Room ID copied"
+                                );
+                            } catch (error) {
+                                console.error(
+                                    "COPY ROOM ID ERROR:",
+                                    error
+                                );
+
+                                toast.error(
+                                    "Unable to copy Room ID"
+                                );
+                            }
+                        }}
+                    >
+                        Copy Room ID
+                    </button>
+                </div>
+
+                <p>
+                    Status:
+                    {connected
+                        ? " Connected"
+                        : " Disconnected"}
+                </p>
+
+                <p>
+                    Users Online:{" "}
+                    {usersOnline}
+                </p>
+
+                <div
+                    className="member-tabs"
+                    style={{
+                        display:
+                            "flex",
+                        gap: "8px",
+                        flexWrap:
+                            "wrap",
+                        margin:
+                            "16px 24px",
                     }}
                 >
-                    Copy Room ID
-                </button>
-            </div>
-
-            <p>
-                Status:
-                {connected
-                    ? " Connected"
-                    : " Disconnected"}
-            </p>
-
-            <p>
-                Users Online:{" "}
-                {usersOnline}
-            </p>
-
-            {/* MEMBER TABS */}
-
-            <div
-                className="member-tabs"
-                style={{
-                    display:
-                        "flex",
-
-                    gap: "8px",
-
-                    flexWrap:
-                        "wrap",
-
-                    margin:
-                        "16px 24px",
-                }}
-            >
-                {roomMembers.map(
-                    (member) => {
-                        const memberId =
-                            String(
-                                member._id ||
-                                member.id
-                            );
-
-                        const isActive =
-                            memberId ===
-                            String(
-                                activeMemberId
-                            );
-
-                        const isCurrentUser =
-                            memberId ===
-                            String(
-                                currentUserId
-                            );
-
-                        return (
-                            <button
-                                key={
-                                    memberId
-                                }
-                                type="button"
-                                onClick={() =>
-                                    selectMember(
-                                        memberId
-                                    )
-                                }
-                                style={{
-                                    background:
-                                        isActive
-                                            ? "linear-gradient(135deg, #f97316, #fb923c)"
-                                            : "#211712",
-
-                                    borderColor:
-                                        isActive
-                                            ? "#fb923c"
-                                            : "rgba(253,186,116,0.13)",
-
-                                    color:
-                                        "#fff7ed",
-                                }}
-                            >
-                                {member.name ||
-                                    "Member"}
-
-                                {isCurrentUser &&
-                                    " (You)"}
-                            </button>
-                        );
-                    }
-                )}
-            </div>
-
-            {/* ACTIVE MEMBER */}
-
-            <h3
-                style={{
-                    margin:
-                        "8px 24px",
-
-                    color:
-                        "#fdba74",
-                }}
-            >
-                {activeMember?.name ||
-                    "Member"}'s Workspace
-            </h3>
-
-            <p
-                style={{
-                    margin:
-                        "0 24px 12px",
-
-                    color:
-                        "#a8a29e",
-                }}
-            >
-                {isOwnWorkspace
-                    ? "You can edit this workspace."
-                    : "This workspace is read-only."}
-            </p>
-
-            {/* ROOM MEMBERS */}
-
-            <div className="room-members">
-                <h3>
-                    Room Members
-                </h3>
-
-                {roomMembers.length ===
-                0 ? (
-                    <p>
-                        No members found
-                    </p>
-                ) : (
-                    roomMembers.map(
+                    {roomMembers.map(
                         (member) => {
                             const memberId =
                                 String(
                                     member._id ||
                                     member.id
+                                );
+
+                            const isActive =
+                                memberId ===
+                                String(
+                                    activeMemberId
                                 );
 
                             const isCurrentUser =
@@ -1580,114 +1705,275 @@ function App() {
                                     currentUserId
                                 );
 
-                            const firstLetter =
-                                member.name
-                                    ? member.name
-                                          .charAt(
-                                              0
-                                          )
-                                          .toUpperCase()
-                                    : "?";
-
                             return (
-                                <div
+                                <button
                                     key={
                                         memberId
                                     }
-                                    className="member"
+                                    type="button"
                                     onClick={() =>
                                         selectMember(
                                             memberId
                                         )
                                     }
                                     style={{
-                                        cursor:
-                                            "pointer",
+                                        background:
+                                            isActive
+                                                ? "linear-gradient(135deg, #f97316, #fb923c)"
+                                                : "#211712",
+
+                                        borderColor:
+                                            isActive
+                                                ? "#fb923c"
+                                                : "rgba(253,186,116,0.13)",
+
+                                        color:
+                                            "#fff7ed",
                                     }}
                                 >
-                                    <div className="avatar">
-                                        {
-                                            firstLetter
-                                        }
-                                    </div>
+                                    {
+                                        member.name ||
+                                        "Member"
+                                    }
 
-                                    <div>
-                                        <strong>
-                                            {
-                                                member.name
-                                            }
-
-                                            {isCurrentUser &&
-                                                " (You)"}
-                                        </strong>
-
-                                        <small>
-                                            {
-                                                member.email
-                                            }
-                                        </small>
-                                    </div>
-                                </div>
+                                    {isCurrentUser &&
+                                        " (You)"}
+                                </button>
                             );
                         }
-                    )
-                )}
-            </div>
+                    )}
+                </div>
 
-            {/* ROOM ACTIONS */}
+                <h3
+                    style={{
+                        margin:
+                            "8px 24px",
+                        color:
+                            "#fdba74",
+                    }}
+                >
+                    {
+                        activeMember?.name ||
+                        "Member"
+                    }'s Workspace
+                </h3>
 
-            <button
-                type="button"
-                onClick={
-                    leaveRoom
-                }
-                disabled={
-                    roomLoading
-                }
-            >
-                Leave Room
-            </button>
+                <p
+                    style={{
+                        margin:
+                            "0 24px 12px",
+                        color:
+                            "#a8a29e",
+                    }}
+                >
+                    {isOwnWorkspace
+                        ? "You can edit this workspace."
+                        : "This workspace is read-only."}
+                </p>
 
-            <button
-                type="button"
-                onClick={
-                    logout
-                }
-                style={{
-                    marginLeft:
-                        "10px",
-                }}
-            >
-                Logout
-            </button>
+                <div
+                    className="editor-toolbar"
+                >
+                    <div
+                        className="editor-toolbar-left"
+                    >
+                        <label
+                            htmlFor="language-select"
+                        >
+                            Language
+                        </label>
 
-            {/* MONACO EDITOR */}
+                        <select
+                            id="language-select"
+                            value={
+                                activeLanguage
+                            }
+                            onChange={
+                                handleLanguageChange
+                            }
+                            disabled={
+                                !activeMemberId
+                            }
+                        >
+                            {LANGUAGES.map(
+                                (
+                                    language
+                                ) => (
+                                    <option
+                                        key={
+                                            language.id
+                                        }
+                                        value={
+                                            language.id
+                                        }
+                                    >
+                                        {
+                                            language.label
+                                        }
+                                    </option>
+                                )
+                            )}
+                        </select>
+                    </div>
 
-            <Editor
-                height="500px"
-                defaultLanguage="javascript"
-                value={
-                    activeEditorCode
-                }
-                onChange={
-                    isOwnWorkspace
-                        ? handleEditorChange
-                        : undefined
-                }
-                theme="vs-dark"
-                options={{
-                    minimap: {
-                        enabled:
+                    <div
+                        className="editor-toolbar-right"
+                    >
+                        <span>
+                            {
+                                LANGUAGES.find(
+                                    (
+                                        language
+                                    ) =>
+                                        language.id ===
+                                        activeLanguage
+                                )?.label ||
+                                "JavaScript"
+                            }
+                        </span>
+                    </div>
+                </div>
+
+                <div className="room-members">
+                    <h3>
+                        Room Members
+                    </h3>
+
+                    {roomMembers.length ===
+                    0 ? (
+                        <p>
+                            No members found
+                        </p>
+                    ) : (
+                        roomMembers.map(
+                            (member) => {
+                                const memberId =
+                                    String(
+                                        member._id ||
+                                        member.id
+                                    );
+
+                                const isCurrentUser =
+                                    memberId ===
+                                    String(
+                                        currentUserId
+                                    );
+
+                                const firstLetter =
+                                    member.name
+                                        ? member.name
+                                              .charAt(
+                                                  0
+                                              )
+                                              .toUpperCase()
+                                        : "?";
+
+                                return (
+                                    <div
+                                        key={
+                                            memberId
+                                        }
+                                        className="member"
+                                        onClick={() =>
+                                            selectMember(
+                                                memberId
+                                            )
+                                        }
+                                        style={{
+                                            cursor:
+                                                "pointer",
+                                        }}
+                                    >
+                                        <div className="avatar">
+                                            {
+                                                firstLetter
+                                            }
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                {
+                                                    member.name
+                                                }
+
+                                                {isCurrentUser &&
+                                                    " (You)"}
+                                            </strong>
+
+                                            <small>
+                                                {
+                                                    member.email
+                                                }
+                                            </small>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                        )
+                    )}
+                </div>
+
+                <button
+                    type="button"
+                    onClick={
+                        leaveRoom
+                    }
+                    disabled={
+                        roomLoading
+                    }
+                >
+                    Leave Room
+                </button>
+
+                <button
+                    type="button"
+                    onClick={
+                        logout
+                    }
+                    style={{
+                        marginLeft:
+                            "10px",
+                    }}
+                >
+                    Logout
+                </button>
+
+                <Editor
+                    height="500px"
+                    language={
+                        activeLanguage
+                    }
+                    value={
+                        activeEditorCode
+                    }
+                    onChange={
+                        isOwnWorkspace
+                            ? handleEditorChange
+                            : undefined
+                    }
+                    theme="vs-dark"
+                    options={{
+                        minimap: {
+                            enabled:
+                                false,
+                        },
+                        fontSize: 16,
+                        automaticLayout:
+                            true,
+                        readOnly:
+                            !isOwnWorkspace,
+                        smoothScrolling:
+                            true,
+                        scrollBeyondLastLine:
                             false,
-                    },
-                    fontSize: 16,
-                    automaticLayout:
-                        true,
-                    readOnly:
-                        !isOwnWorkspace,
-                }}
-            />
-        </div>
+                        padding: {
+                            top: 12,
+                            bottom: 12,
+                        },
+                    }}
+                />
+            </div>
+        </>
     );
 }
 

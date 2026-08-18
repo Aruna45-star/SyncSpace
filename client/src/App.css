@@ -74,7 +74,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -537,8 +538,6 @@ button:disabled {
   box-shadow: none;
 }
 
-/* Active tab */
-
 .member-tabs button[style*="linear-gradient"] {
   background:
     linear-gradient(
@@ -554,6 +553,129 @@ button:disabled {
 
   box-shadow:
     0 8px 20px rgba(249, 115, 22, 0.2) !important;
+}
+
+/* =========================================================
+   EDITOR TOOLBAR
+   ========================================================= */
+
+.editor-toolbar {
+  width: calc(100% - 48px);
+
+  margin: 0 24px 10px;
+
+  min-height: 52px;
+
+  padding: 8px 12px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 12px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(31, 23, 18, 0.94),
+      rgba(18, 13, 10, 0.96)
+    );
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.2);
+}
+
+.editor-toolbar-left {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+.editor-toolbar-left label {
+  color: var(--text-soft);
+
+  font-size: 12px;
+
+  font-weight: 700;
+}
+
+.editor-toolbar select {
+  min-width: 150px;
+
+  height: 36px;
+
+  padding:
+    0 32px 0 11px;
+
+  outline: none;
+
+  color: #fff7ed;
+
+  background-color: #211712;
+
+  border: 1px solid var(--border);
+
+  border-radius: 8px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.editor-toolbar select:hover {
+  border-color:
+    var(--border-strong);
+
+  background-color: #2a1b14;
+}
+
+.editor-toolbar select:focus {
+  border-color:
+    rgba(249, 115, 22, 0.7);
+
+  box-shadow:
+    0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.editor-toolbar select:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+.editor-toolbar select option {
+  color: #fff7ed;
+
+  background: #1c1410;
+}
+
+.editor-toolbar-right {
+  color: var(--peach);
+
+  font-family:
+    "JetBrains Mono",
+    "Fira Code",
+    Consolas,
+    monospace;
+
+  font-size: 11px;
+
+  font-weight: 600;
 }
 
 /* =========================================================
@@ -762,6 +884,14 @@ button:disabled {
     margin-right: 14px !important;
   }
 
+  .editor-toolbar {
+    width: calc(100% - 28px);
+
+    margin-left: 14px;
+
+    margin-right: 14px;
+  }
+
   .room-members {
     width:
       calc(100% - 28px);
@@ -820,6 +950,30 @@ button:disabled {
       1 1 calc(50% - 6px);
 
     min-width: 120px;
+  }
+
+  .editor-toolbar {
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
+
+    min-height: auto;
+  }
+
+  .editor-toolbar-left {
+    width: 100%;
+  }
+
+  .editor-toolbar select {
+    width: 100%;
+
+    min-width: 0;
+  }
+
+  .editor-toolbar-right {
+    display: none;
   }
 
   .room-members + button,
