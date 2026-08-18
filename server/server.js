@@ -14,11 +14,13 @@ const PORT = process.env.PORT || 5000;
 // =====================================
 // CREATE HTTP SERVER
 // =====================================
+
 const server = http.createServer(app);
 
 // =====================================
 // SOCKET.IO SETUP
 // =====================================
+
 const io = new Server(server, {
     cors: {
         origin: "*"
@@ -26,8 +28,23 @@ const io = new Server(server, {
 });
 
 // =====================================
+// HELPER FUNCTION
+// =====================================
+
+function getRoomSize(roomId) {
+    if (!roomId) {
+        return 0;
+    }
+
+    return (
+        io.sockets.adapter.rooms.get(roomId)?.size || 0
+    );
+}
+
+// =====================================
 // SOCKET CONNECTION
 // =====================================
+
 io.on("connection", (socket) => {
 
     console.log(
@@ -38,117 +55,154 @@ io.on("connection", (socket) => {
     // =====================================
     // JOIN ROOM
     // =====================================
-    socket.on("join-room", async (roomId) => {
 
-        try {
+    socket.on(
+        "join-room",
+        async (roomId) => {
 
-            // ---------------------------------
-            // Leave previous room if necessary
-            // ---------------------------------
-            if (
-                socket.roomId &&
-                socket.roomId !== roomId
-            ) {
+            try {
 
-                const oldRoomId =
-                    socket.roomId;
+                if (!roomId) {
+                    console.log(
+                        "Room ID is required"
+                    );
+                    return;
+                }
 
-                socket.leave(oldRoomId);
+                // ---------------------------------
+                // Leave previous room
+                // ---------------------------------
 
-                const oldRoomSize =
-                    io.sockets.adapter.rooms.get(
-                        oldRoomId
-                    )?.size || 0;
+                if (
+                    socket.roomId &&
+                    socket.roomId !== roomId
+                ) {
 
-                io.to(oldRoomId).emit(
+                    const oldRoomId =
+                        socket.roomId;
+
+                    socket.leave(oldRoomId);
+
+                    socket.roomId = null;
+
+                    const oldRoomSize =
+                        getRoomSize(oldRoomId);
+
+                    io.to(oldRoomId).emit(
+                        "room-users",
+                        oldRoomSize
+                    );
+
+                    console.log(
+                        `${socket.id} left old room ${oldRoomId}`
+                    );
+                }
+
+                // ---------------------------------
+                // Find room in MongoDB
+                // ---------------------------------
+
+                let room =
+                    await Room.findOne({
+                        roomId
+                    });
+
+                // ---------------------------------
+                // Create room if it doesn't exist
+                // ---------------------------------
+
+                if (!room) {
+
+                    room =
+                        await Room.create({
+                            roomId,
+                            roomName:
+                                "Untitled Room",
+                            users: [],
+                            code: ""
+                        });
+
+                    console.log(
+                        `Room created in MongoDB: ${roomId}`
+                    );
+                }
+
+                // ---------------------------------
+                // Join Socket.IO room
+                // ---------------------------------
+
+                socket.join(roomId);
+
+                socket.roomId = roomId;
+
+                console.log(
+                    `${socket.id} joined room ${roomId}`
+                );
+
+                // ---------------------------------
+                // Send existing code
+                // ---------------------------------
+
+                socket.emit(
+                    "room-code",
+                    room.code || ""
+                );
+
+                console.log(
+                    `Existing code sent for room ${roomId}`
+                );
+
+                // ---------------------------------
+                // Get current online users
+                // ---------------------------------
+
+                const roomSize =
+                    getRoomSize(roomId);
+
+                // ---------------------------------
+                // Notify ALL users
+                // ---------------------------------
+
+                io.to(roomId).emit(
                     "room-users",
-                    oldRoomSize
+                    roomSize
                 );
 
                 console.log(
-                    `${socket.id} left old room ${oldRoomId}`
+                    `Room ${roomId} now has ${roomSize} online users`
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "JOIN ROOM ERROR:",
+                    error
                 );
             }
-
-            // ---------------------------------
-            // Find room in MongoDB
-            // ---------------------------------
-            let room =
-                await Room.findOne({
-                    roomId
-                });
-
-            // ---------------------------------
-            // Create room if it doesn't exist
-            // ---------------------------------
-            if (!room) {
-
-                room = await Room.create({
-                    roomId,
-                    roomName: "Untitled Room",
-                    users: [],
-                    code: ""
-                });
-
-                console.log(
-                    `Room created in MongoDB: ${roomId}`
-                );
-            }
-
-            // ---------------------------------
-            // Join Socket.IO room
-            // ---------------------------------
-            socket.join(roomId);
-
-            socket.roomId = roomId;
-
-            console.log(
-                `${socket.id} joined room ${roomId}`
-            );
-
-            // ---------------------------------
-            // Send existing code from MongoDB
-            // ---------------------------------
-            socket.emit(
-                "room-code",
-                room.code || ""
-            );
-
-            console.log(
-                `Existing code sent for room ${roomId}`
-            );
-
-            // ---------------------------------
-            // Update online users
-            // ---------------------------------
-            const roomSize =
-                io.sockets.adapter.rooms.get(
-                    roomId
-                )?.size || 0;
-
-            io.to(roomId).emit(
-                "room-users",
-                roomSize
-            );
-
-        } catch (error) {
-
-            console.error(
-                "JOIN ROOM ERROR:",
-                error
-            );
         }
-    });
-
+    );
 
     // =====================================
     // LEAVE ROOM
     // =====================================
+
     socket.on(
         "leave-room",
         async (roomId) => {
 
             try {
+
+                // ---------------------------------
+                // Validate room
+                // ---------------------------------
+
+                if (!roomId) {
+                    return;
+                }
+
+                // ---------------------------------
+                // Leave Socket.IO room
+                // ---------------------------------
 
                 socket.leave(roomId);
 
@@ -156,22 +210,50 @@ io.on("connection", (socket) => {
                     `${socket.id} left room ${roomId}`
                 );
 
+                // ---------------------------------
+                // Clear current room
+                // ---------------------------------
+
                 if (
                     socket.roomId === roomId
                 ) {
+
                     socket.roomId = null;
                 }
 
-                // Get remaining users
-                const roomSize =
-                    io.sockets.adapter.rooms.get(
-                        roomId
-                    )?.size || 0;
+                // ---------------------------------
+                // IMPORTANT:
+                // Wait until Socket.IO updates
+                // the room membership
+                // ---------------------------------
 
-                // Update remaining users
+                await new Promise(
+                    (resolve) =>
+                        setImmediate(resolve)
+                );
+
+                // ---------------------------------
+                // Get remaining users
+                // ---------------------------------
+
+                const roomSize =
+                    getRoomSize(roomId);
+
+                console.log(
+                    `Remaining users in ${roomId}: ${roomSize}`
+                );
+
+                // ---------------------------------
+                // Notify remaining users
+                // ---------------------------------
+
                 io.to(roomId).emit(
                     "room-users",
                     roomSize
+                );
+
+                console.log(
+                    `Updated room-users for ${roomId}: ${roomSize}`
                 );
 
             } catch (error) {
@@ -184,23 +266,28 @@ io.on("connection", (socket) => {
         }
     );
 
-
     // =====================================
     // CODE CHANGE
     // =====================================
+
     socket.on(
         "code-change",
         async ({ roomId, code }) => {
 
             try {
 
+                if (!roomId) {
+                    return;
+                }
+
                 console.log(
                     `Code updated in room ${roomId}`
                 );
 
                 // ---------------------------------
-                // SAVE CODE TO MONGODB
+                // Save code to MongoDB
                 // ---------------------------------
+
                 const room =
                     await Room.findOneAndUpdate(
                         { roomId },
@@ -228,11 +315,12 @@ io.on("connection", (socket) => {
                 // ---------------------------------
                 // Send code to other users
                 // ---------------------------------
+
                 socket
                     .to(roomId)
                     .emit(
                         "code-update",
-                        code
+                        code || ""
                     );
 
             } catch (error) {
@@ -245,54 +333,100 @@ io.on("connection", (socket) => {
         }
     );
 
-
     // =====================================
     // YJS UPDATE
     // =====================================
+
     socket.on(
         "yjs-update",
         ({ roomId, update }) => {
 
-            console.log(
-                `Yjs update received from ${socket.id} in room ${roomId}`
-            );
+            try {
 
-            // Send Yjs update to other users
-            socket
-                .to(roomId)
-                .emit(
-                    "yjs-update",
-                    update
+                if (!roomId) {
+                    return;
+                }
+
+                console.log(
+                    `Yjs update received from ${socket.id} in room ${roomId}`
                 );
+
+                // Send update to other users
+
+                socket
+                    .to(roomId)
+                    .emit(
+                        "yjs-update",
+                        update
+                    );
+
+            } catch (error) {
+
+                console.error(
+                    "YJS UPDATE ERROR:",
+                    error
+                );
+            }
         }
     );
-
 
     // =====================================
     // DISCONNECT
     // =====================================
+
     socket.on(
         "disconnect",
-        () => {
+        async () => {
 
-            console.log(
-                "User disconnected:",
-                socket.id
-            );
+            try {
 
-            const roomId =
-                socket.roomId;
+                console.log(
+                    "User disconnected:",
+                    socket.id
+                );
 
-            if (roomId) {
+                const roomId =
+                    socket.roomId;
+
+                if (!roomId) {
+                    return;
+                }
+
+                // ---------------------------------
+                // Give Socket.IO time to update
+                // room membership
+                // ---------------------------------
+
+                await new Promise(
+                    (resolve) =>
+                        setImmediate(resolve)
+                );
+
+                // ---------------------------------
+                // Get remaining users
+                // ---------------------------------
 
                 const roomSize =
-                    io.sockets.adapter.rooms.get(
-                        roomId
-                    )?.size || 0;
+                    getRoomSize(roomId);
+
+                console.log(
+                    `Remaining users after disconnect in ${roomId}: ${roomSize}`
+                );
+
+                // ---------------------------------
+                // Notify remaining users
+                // ---------------------------------
 
                 io.to(roomId).emit(
                     "room-users",
                     roomSize
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "DISCONNECT ERROR:",
+                    error
                 );
             }
         }
@@ -300,10 +434,10 @@ io.on("connection", (socket) => {
 
 });
 
-
 // =====================================
 // START SERVER
 // =====================================
+
 server.listen(
     PORT,
     () => {

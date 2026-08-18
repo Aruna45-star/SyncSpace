@@ -1,6 +1,8 @@
 const Room = require("../models/Room");
 
-// Create Room
+// ================================
+// CREATE ROOM
+// ================================
 const createRoom = async (req, res) => {
     try {
         console.log("BODY RECEIVED:", req.body);
@@ -9,11 +11,16 @@ const createRoom = async (req, res) => {
 
         const room = await Room.create({
             roomId: Date.now().toString(),
-            roomName: roomName || "Untitled Room",
-            createdBy: userId,
+            roomName: roomName?.trim() || "Untitled Room",
+            createdBy: userId || null,
             users: userId ? [userId] : [],
             code: ""
         });
+
+        // Populate users for response
+        await room.populate("users", "name email");
+
+        console.log("ROOM CREATED:", room);
 
         res.status(201).json({
             message: "Room created successfully",
@@ -30,10 +37,14 @@ const createRoom = async (req, res) => {
 };
 
 
-// Get All Rooms
+// ================================
+// GET ALL ROOMS
+// ================================
 const getAllRooms = async (req, res) => {
     try {
-        const rooms = await Room.find();
+        const rooms = await Room.find()
+            .populate("users", "name email")
+            .populate("createdBy", "name email");
 
         res.status(200).json({
             message: "Rooms fetched successfully",
@@ -51,18 +62,24 @@ const getAllRooms = async (req, res) => {
 };
 
 
-// Get Single Room
+// ================================
+// GET SINGLE ROOM
+// ================================
 const getRoomById = async (req, res) => {
     try {
         const { roomId } = req.params;
 
-        const room = await Room.findOne({ roomId });
+        const room = await Room.findOne({ roomId })
+            .populate("users", "name email")
+            .populate("createdBy", "name email");
 
         if (!room) {
             return res.status(404).json({
                 message: "Room not found"
             });
         }
+
+        console.log("ROOM USERS:", room.users);
 
         res.status(200).json({
             message: "Room fetched successfully",
@@ -79,12 +96,25 @@ const getRoomById = async (req, res) => {
 };
 
 
-// Join Room
+// ================================
+// JOIN ROOM
+// ================================
 const joinRoom = async (req, res) => {
     try {
         const { roomId } = req.params;
         const { userId } = req.body;
 
+        console.log("JOIN ROOM ID:", roomId);
+        console.log("JOIN USER ID:", userId);
+
+        if (!userId) {
+            return res.status(400).json({
+                message: "UserId is required"
+            });
+        }
+
+        // IMPORTANT:
+        // Don't populate before modifying users.
         const room = await Room.findOne({ roomId });
 
         if (!room) {
@@ -93,16 +123,35 @@ const joinRoom = async (req, res) => {
             });
         }
 
-        if (!userId) {
-            return res.status(400).json({
-                message: "UserId is required"
-            });
+        // Check whether user already joined
+        const alreadyJoined = room.users.some(
+            (user) => user.toString() === userId.toString()
+        );
+
+        if (!alreadyJoined) {
+            room.users.push(userId);
+
+            await room.save();
+
+            console.log(
+                "User added to room:",
+                userId
+            );
+        } else {
+            console.log(
+                "User already belongs to room:",
+                userId
+            );
         }
 
-        if (!room.users.some(user => user.toString() === userId)) {
-            room.users.push(userId);
-            await room.save();
-        }
+        // Populate ONLY after save
+        await room.populate("users", "name email");
+        await room.populate("createdBy", "name email");
+
+        console.log(
+            "UPDATED ROOM USERS:",
+            room.users
+        );
 
         res.status(200).json({
             message: "Joined room successfully",
@@ -119,11 +168,20 @@ const joinRoom = async (req, res) => {
 };
 
 
-// Update Room Code
+// ================================
+// UPDATE ROOM CODE
+// ================================
 const updateRoomCode = async (req, res) => {
     try {
-        console.log("UPDATE BODY RECEIVED:", req.body);
-        console.log("ROOM ID:", req.params.roomId);
+        console.log(
+            "UPDATE BODY RECEIVED:",
+            req.body
+        );
+
+        console.log(
+            "ROOM ID:",
+            req.params.roomId
+        );
 
         const { roomId } = req.params;
         const { code } = req.body;
@@ -139,7 +197,9 @@ const updateRoomCode = async (req, res) => {
             { roomId },
             { code },
             { new: true }
-        );
+        )
+            .populate("users", "name email")
+            .populate("createdBy", "name email");
 
         if (!room) {
             return res.status(404).json({
@@ -153,7 +213,10 @@ const updateRoomCode = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("UPDATE CODE ERROR:", error);
+        console.error(
+            "UPDATE CODE ERROR:",
+            error
+        );
 
         res.status(500).json({
             message: error.message
@@ -161,12 +224,18 @@ const updateRoomCode = async (req, res) => {
     }
 };
 
-// Delete Room
+
+// ================================
+// DELETE ROOM
+// ================================
 const deleteRoom = async (req, res) => {
     try {
         const { roomId } = req.params;
 
-        const room = await Room.findOneAndDelete({ roomId });
+        const room =
+            await Room.findOneAndDelete({
+                roomId
+            });
 
         if (!room) {
             return res.status(404).json({
@@ -179,29 +248,35 @@ const deleteRoom = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("DELETE ROOM ERROR:", error);
+        console.error(
+            "DELETE ROOM ERROR:",
+            error
+        );
 
         res.status(500).json({
             message: error.message
         });
     }
 };
-// Leave Room
+
+
+// ================================
+// LEAVE ROOM
+// ================================
 const leaveRoom = async (req, res) => {
     try {
-        console.log("LEAVE BODY:", req.body);
-        console.log("LEAVE ROOM ID:", req.params.roomId);
+        console.log(
+            "LEAVE BODY:",
+            req.body
+        );
+
+        console.log(
+            "LEAVE ROOM ID:",
+            req.params.roomId
+        );
 
         const { roomId } = req.params;
         const { userId } = req.body || {};
-
-        const room = await Room.findOne({ roomId });
-
-        if (!room) {
-            return res.status(404).json({
-                message: "Room not found"
-            });
-        }
 
         if (!userId) {
             return res.status(400).json({
@@ -210,11 +285,39 @@ const leaveRoom = async (req, res) => {
             });
         }
 
+        const room =
+            await Room.findOne({ roomId });
+
+        if (!room) {
+            return res.status(404).json({
+                message: "Room not found"
+            });
+        }
+
+        // Remove user from room
         room.users = room.users.filter(
-    user => user && user.toString() !== userId
-);
+            (user) =>
+                user &&
+                user.toString() !== userId.toString()
+        );
 
         await room.save();
+
+        // Populate response
+        await room.populate(
+            "users",
+            "name email"
+        );
+
+        await room.populate(
+            "createdBy",
+            "name email"
+        );
+
+        console.log(
+            "USERS AFTER LEAVE:",
+            room.users
+        );
 
         res.status(200).json({
             message: "Left room successfully",
@@ -222,7 +325,10 @@ const leaveRoom = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("LEAVE ROOM ERROR:", error);
+        console.error(
+            "LEAVE ROOM ERROR:",
+            error
+        );
 
         res.status(500).json({
             message: error.message
@@ -230,6 +336,10 @@ const leaveRoom = async (req, res) => {
     }
 };
 
+
+// ================================
+// EXPORT
+// ================================
 module.exports = {
     createRoom,
     getAllRooms,
